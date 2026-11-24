@@ -1,7 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
-import { asc, desc, eq, max, sql } from 'drizzle-orm'
+import { randomUUID } from 'node:crypto'
+import { asc, desc, eq, inArray, max, sql } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
-import { echoes, glitches, guardians } from '#/db/schema.ts'
+import { echoImages, echoes, glitches, guardians } from '#/db/schema.ts'
 import {
   GLITCH_STATUSES,
   type GlitchDetail,
@@ -11,6 +12,8 @@ import {
 } from '#/lib/glitch.ts'
 import { isDistrictId, parseSiteId, type DistrictId } from '#/lib/districts.ts'
 import { requireCommander, requireGuardian, requireReporter } from '#/lib/session.ts'
+import { isCriticalReport, normalizeEchoImages } from '#/lib/user-engagement.ts'
+import { publishCriticalAlert } from '#/lib/notifications.server.ts'
 import { executeDueOperations, nextId, stagedGlitches } from '#/lib/world.ts'
 
 const MAX_DESCRIPTION = 500
@@ -67,8 +70,31 @@ export const getGlitch = createServerFn({ method: 'GET' })
       .where(eq(echoes.glitchId, glitchId))
       .orderBy(asc(echoes.timestamp))
       .all()
+    const images = rows.length
+      ? db
+          .select({
+            imageId: echoImages.imageId,
+            echoId: echoImages.echoId,
+            fileName: echoImages.fileName,
+            mimeType: echoImages.mimeType,
+            byteSize: echoImages.byteSize,
+          })
+          .from(echoImages)
+          .where(inArray(echoImages.echoId, rows.map((row) => row.echoId)))
+          .all()
+      : []
+    const imagesByEcho = new Map<string, typeof images>()
+    for (const image of images) {
+      const current = imagesByEcho.get(image.echoId) ?? []
+      current.push(image)
+      imagesByEcho.set(image.echoId, current)
+    }
     const stagedBy = canCommand(guardian.role) ? (stagedGlitches().get(glitchId) ?? null) : undefined
-    return { ...glitch, echoes: rows, stagedBy }
+    return {
+      ...glitch,
+      echoes: rows.map((echo) => ({ ...echo, images: imagesByEcho.get(echo.echoId) ?? [] })),
+      stagedBy,
+    }
   })
 
 /**
@@ -76,39 +102,93 @@ export const getGlitch = createServerFn({ method: 'GET' })
  * with one, it adds an update to that glitch.
  */
 export const reportEcho = createServerFn({ method: 'POST' })
-  .validator((input: { description: string; glitchId?: string; district?: DistrictId; siteId?: string }) => {
-    const description = String(input.description ?? '').trim()
-    if (description.length < 3) throw new Error('Describe what you saw, at least a few words.')
-    if (description.length > MAX_DESCRIPTION) {
-      throw new Error(`Keep it under ${MAX_DESCRIPTION} characters.`)
-    }
-    const glitchId = input.glitchId ? String(input.glitchId) : undefined
-    if (!glitchId && !isDistrictId(input.district)) throw new Error('Pick the district where you saw it.')
-    const site = parseSiteId(input.siteId)
-    if (input.siteId && (!site || site.district !== input.district)) throw new Error('That site isn’t in this district.')
-    return { description, glitchId, district: input.district, siteId: site ? input.siteId! : null }
-  })
+  .validator(
+    (input: {
+      description: string
+      glitchId?: string
+      district?: DistrictId
+      siteId?: string
+      images?: unknown
+    }) => {
+      const description = String(input.description ?? '').trim()
+      if (description.length < 3) throw new Error('Describe what you saw, at least a few words.')
+      if (description.length > MAX_DESCRIPTION) {
+        throw new Error(`Keep it under ${MAX_DESCRIPTION} characters.`)
+      }
+      const glitchId = input.glitchId ? String(input.glitchId) : undefined
+      if (!glitchId && !isDistrictId(input.district)) throw new Error('Pick the district where you saw it.')
+      const site = parseSiteId(input.siteId)
+      if (input.siteId && (!site || site.district !== input.district)) throw new Error('That site isn’t in this district.')
+      const images = normalizeEchoImages(input.images)
+      return { description, glitchId, district: input.district, siteId: site ? input.siteId! : null, images }
+    },
+  )
   .handler(async ({ data }): Promise<{ glitchId: string; echoId: string }> => {
     const guardian = requireReporter()
     const timestamp = new Date().toISOString()
 
-    return db.transaction((tx) => {
+    const result = db.transaction((tx) => {
       let glitchId = data.glitchId
+      let district = data.district
+      let severity: number | null = null
+      let critical = false
       if (glitchId) {
-        const exists = tx.select({ id: glitches.glitchId }).from(glitches).where(eq(glitches.glitchId, glitchId)).get()
-        if (!exists) throw new Error(`Glitch ${glitchId} no longer exists.`)
+        const existing = tx
+          .select({ id: glitches.glitchId, district: glitches.district, severity: glitches.severity })
+          .from(glitches)
+          .where(eq(glitches.glitchId, glitchId))
+          .get()
+        if (!existing) throw new Error(`Glitch ${glitchId} no longer exists.`)
+        district = existing.district
+        severity = existing.severity
+        critical = (severity ?? 0) >= 4 || isCriticalReport(data.description)
       } else {
         const ids = tx.select({ id: glitches.glitchId }).from(glitches).all().map((r) => r.id)
         glitchId = nextId('GL', ids)
-        tx.insert(glitches).values({ glitchId, status: 'LEAKED', district: data.district!, siteId: data.siteId, description: data.description, timestamp }).run()
+        severity = isCriticalReport(data.description) ? 5 : 2
+        critical = severity >= 4
+        tx.insert(glitches)
+          .values({
+            glitchId,
+            status: 'LEAKED',
+            district: data.district!,
+            siteId: data.siteId,
+            description: data.description,
+            timestamp,
+            severity,
+          })
+          .run()
       }
       const echoIds = tx.select({ id: echoes.echoId }).from(echoes).all().map((r) => r.id)
       const echoId = nextId('EC', echoIds)
       tx.insert(echoes)
         .values({ echoId, glitchId, description: data.description, timestamp, reportingGuardianId: guardian.guardianId })
         .run()
-      return { glitchId, echoId }
+      for (const image of data.images) {
+        tx.insert(echoImages)
+          .values({
+            imageId: randomUUID(),
+            echoId,
+            fileName: image.fileName,
+            mimeType: image.mimeType,
+            byteSize: image.byteSize,
+            data: Buffer.from(image.base64, 'base64'),
+            createdAt: timestamp,
+          })
+          .run()
+      }
+      return { glitchId, echoId, district, critical }
     })
+    if (result.critical) {
+      publishCriticalAlert({
+        eventKey: `critical-report:${result.glitchId}`,
+        kind: 'CRITICAL_REPORT',
+        title: 'Critical glitch reported',
+        body: `A critical incident was reported in ${result.district}.`,
+        href: `/glitches/${result.glitchId}`,
+      })
+    }
+    return { glitchId: result.glitchId, echoId: result.echoId }
   })
 
 export const setGlitchStatus = createServerFn({ method: 'POST' })

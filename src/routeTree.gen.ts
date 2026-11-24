@@ -14,11 +14,13 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedLeaderboardRouteImport } from './routes/_authed/leaderboard'
 import { Route as AuthedMcpRouteImport } from './routes/_authed/mcp'
+import { Route as AuthedNotificationsRouteImport } from './routes/_authed/notifications'
 import { Route as AuthedPersonsRouteImport } from './routes/_authed/persons'
 import { Route as AuthedBombsGlitchIdRouteImport } from './routes/_authed/bombs.$glitchId'
 import { Route as AuthedDistrictsDistrictIdRouteImport } from './routes/_authed/districts.$districtId'
 import { Route as AuthedGlitchesGlitchIdRouteImport } from './routes/_authed/glitches.$glitchId'
 import { Route as AuthedPersonsPersonIdRouteImport } from './routes/_authed/persons.$personId'
+import { Route as ApiEchoImagesImageIdRouteImport } from './routes/api.echo-images.$imageId'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -42,6 +44,11 @@ const AuthedLeaderboardRoute = AuthedLeaderboardRouteImport.update({
 const AuthedMcpRoute = AuthedMcpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedNotificationsRoute = AuthedNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedPersonsRoute = AuthedPersonsRouteImport.update({
@@ -70,28 +77,37 @@ const AuthedPersonsPersonIdRoute = AuthedPersonsPersonIdRouteImport.update({
   path: '/$personId',
   getParentRoute: () => AuthedPersonsRoute,
 } as any)
+const ApiEchoImagesImageIdRoute = ApiEchoImagesImageIdRouteImport.update({
+  id: '/api/echo-images/$imageId',
+  path: '/api/echo-images/$imageId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
   '/leaderboard': typeof AuthedLeaderboardRoute
   '/mcp': typeof AuthedMcpRoute
+  '/notifications': typeof AuthedNotificationsRoute
   '/persons': typeof AuthedPersonsRouteWithChildren
   '/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
   '/persons/$personId': typeof AuthedPersonsPersonIdRoute
+  '/api/echo-images/$imageId': typeof ApiEchoImagesImageIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/leaderboard': typeof AuthedLeaderboardRoute
   '/mcp': typeof AuthedMcpRoute
+  '/notifications': typeof AuthedNotificationsRoute
   '/persons': typeof AuthedPersonsRouteWithChildren
   '/': typeof AuthedIndexRoute
   '/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
   '/persons/$personId': typeof AuthedPersonsPersonIdRoute
+  '/api/echo-images/$imageId': typeof ApiEchoImagesImageIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -99,12 +115,14 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/leaderboard': typeof AuthedLeaderboardRoute
   '/_authed/mcp': typeof AuthedMcpRoute
+  '/_authed/notifications': typeof AuthedNotificationsRoute
   '/_authed/persons': typeof AuthedPersonsRouteWithChildren
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/_authed/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/_authed/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
   '/_authed/persons/$personId': typeof AuthedPersonsPersonIdRoute
+  '/api/echo-images/$imageId': typeof ApiEchoImagesImageIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -113,39 +131,46 @@ export interface FileRouteTypes {
     | '/login'
     | '/leaderboard'
     | '/mcp'
+    | '/notifications'
     | '/persons'
     | '/bombs/$glitchId'
     | '/districts/$districtId'
     | '/glitches/$glitchId'
     | '/persons/$personId'
+    | '/api/echo-images/$imageId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/leaderboard'
     | '/mcp'
+    | '/notifications'
     | '/persons'
     | '/'
     | '/bombs/$glitchId'
     | '/districts/$districtId'
     | '/glitches/$glitchId'
     | '/persons/$personId'
+    | '/api/echo-images/$imageId'
   id:
     | '__root__'
     | '/_authed'
     | '/login'
     | '/_authed/leaderboard'
     | '/_authed/mcp'
+    | '/_authed/notifications'
     | '/_authed/persons'
     | '/_authed/'
     | '/_authed/bombs/$glitchId'
     | '/_authed/districts/$districtId'
     | '/_authed/glitches/$glitchId'
     | '/_authed/persons/$personId'
+    | '/api/echo-images/$imageId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiEchoImagesImageIdRoute: typeof ApiEchoImagesImageIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -185,6 +210,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedMcpRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/notifications': {
+      id: '/_authed/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthedNotificationsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/persons': {
       id: '/_authed/persons'
       path: '/persons'
@@ -220,6 +252,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedPersonsPersonIdRouteImport
       parentRoute: typeof AuthedPersonsRoute
     }
+    '/api/echo-images/$imageId': {
+      id: '/api/echo-images/$imageId'
+      path: '/api/echo-images/$imageId'
+      fullPath: '/api/echo-images/$imageId'
+      preLoaderRoute: typeof ApiEchoImagesImageIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -238,6 +277,7 @@ const AuthedPersonsRouteWithChildren = AuthedPersonsRoute._addFileChildren(
 interface AuthedRouteChildren {
   AuthedLeaderboardRoute: typeof AuthedLeaderboardRoute
   AuthedMcpRoute: typeof AuthedMcpRoute
+  AuthedNotificationsRoute: typeof AuthedNotificationsRoute
   AuthedPersonsRoute: typeof AuthedPersonsRouteWithChildren
   AuthedIndexRoute: typeof AuthedIndexRoute
   AuthedBombsGlitchIdRoute: typeof AuthedBombsGlitchIdRoute
@@ -248,6 +288,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedLeaderboardRoute: AuthedLeaderboardRoute,
   AuthedMcpRoute: AuthedMcpRoute,
+  AuthedNotificationsRoute: AuthedNotificationsRoute,
   AuthedPersonsRoute: AuthedPersonsRouteWithChildren,
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedBombsGlitchIdRoute: AuthedBombsGlitchIdRoute,
@@ -261,6 +302,7 @@ const AuthedRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiEchoImagesImageIdRoute: ApiEchoImagesImageIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -5,6 +5,7 @@ import { caseEntries, echoes, glitches, guardians, operations, persons } from '#
 import { FUSE_SECONDS, generatePuzzle } from '#/lib/bomb.ts'
 import { siteName, type DistrictId } from '#/lib/districts.ts'
 import { computeImpact, computeMoods, IMPACT, type DistrictMood } from '#/lib/operations.ts'
+import { publishCriticalAlert } from '#/lib/notifications.server.ts'
 import {
   ATTRIBUTION_HEAT,
   computeExposure,
@@ -131,6 +132,23 @@ function fireDueOperations(now: Date) {
       tx.update(operations).set({ status: 'EXECUTED', glitchId, ...harm }).where(eq(operations.operationId, op.operationId)).run()
     }
   })
+
+  for (const op of due) {
+    if (op.type !== 'bomb') continue
+    const fired = db
+      .select({ glitchId: operations.glitchId })
+      .from(operations)
+      .where(eq(operations.operationId, op.operationId))
+      .get()
+    if (!fired?.glitchId) continue
+    publishCriticalAlert({
+      eventKey: `bomb-armed:${op.operationId}`,
+      kind: 'BOMB_ARMED',
+      title: 'Armed device detected',
+      body: `A device is armed at ${siteName(op.siteId) ?? 'an unknown site'}.`,
+      href: `/bombs/${fired.glitchId}`,
+    })
+  }
 }
 
 /**
@@ -172,6 +190,16 @@ export function detonateExpiredBombs(now = new Date()) {
         .run()
     }
   })
+  for (const op of expired) {
+    if (!op.glitchId) continue
+    publishCriticalAlert({
+      eventKey: `bomb-detonated:${op.operationId}`,
+      kind: 'BOMB_DETONATED',
+      title: 'Device detonated',
+      body: `The device at ${siteName(op.siteId) ?? 'the site'} detonated.`,
+      href: `/glitches/${op.glitchId}`,
+    })
+  }
 }
 
 /** Glitch id -> operation id, for glitches that were staged. Commanders only. */

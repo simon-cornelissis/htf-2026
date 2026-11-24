@@ -11,7 +11,7 @@ export const Route = createFileRoute('/login')({
   component: LoginPage,
 })
 
-const DEMO_CODENAMES = ['VESK', 'MORROW', 'LYRE']
+const DEMO_CODENAMES = ['COMMANDER', 'DEFENDER1', 'DEFENDER2']
 
 const BOOT = [
   'ACHRONA REGIONAL TERMINAL  v0.41',
@@ -86,7 +86,7 @@ function LoginPage() {
                 autoComplete="username"
                 value={codename}
                 onChange={(e) => { setCodename(e.target.value); setError(null) }}
-                placeholder="MORROW_"
+                placeholder="DEFENDER1_"
                 className="relative z-10 w-full border-b-2 border-phos-dim/60 bg-transparent text-phos uppercase caret-phos placeholder:text-phos-dim/70 focus:border-phos focus:outline-none"
               />
             </label>
@@ -116,18 +116,18 @@ function LoginPage() {
             {import.meta.env.DEV && (
               <div className="inset bg-metal-lo p-3">
                 <p className="stamp mb-2 text-[10px] leading-snug">
-                  Demo · pass <span className="text-white">continuity</span>
+                  Demo · pass <span className="text-white">guest</span>
                 </p>
                 <div className="flex flex-col gap-2">
                   {DEMO_CODENAMES.map((name) => (
                     <button
                       key={name}
                       type="button"
-                      onClick={() => { setCodename(name); setPassword('continuity'); setError(null) }}
+                      onClick={() => { setCodename(name); setPassword('guest'); setError(null) }}
                       className="btn flex items-center justify-between px-2 py-1.5 text-[11px]"
                     >
                       {name}
-                      <span data-on={name === 'VESK' ? 'amber' : 'green'} className="lamp size-2" aria-hidden="true" />
+                      <span data-on={name === 'COMMANDER' ? 'amber' : 'green'} className="lamp size-2" aria-hidden="true" />
                     </button>
                   ))}
                 </div>

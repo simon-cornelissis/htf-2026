@@ -23,7 +23,7 @@ npm run dev
 
 > **Node 24 vereist** (zie `.node-version`). Op Node 22.12 crasht `better-sqlite3` (segfault).
 
-**Demo guardians** (passphrase `continuity`): `VESK` (commander), `MORROW` en `LYRE` (defenders).
+**Demo guardians** (passphrase `guest`): `COMMANDER`, `DEFENDER1` en `DEFENDER2`.
 ## Beoordeling
 > Hoe wij beoordelen wordt voor de start van de hackathon met alle studenten gedeeld, zodat dit meteen duidelijk is voor iedereen.
 

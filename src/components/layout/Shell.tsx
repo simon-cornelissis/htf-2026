@@ -4,6 +4,9 @@ import { Power } from 'lucide-react'
 import { Seal, Tube, Wires } from '#/components/ui/Seal.tsx'
 import { TransmitDialog, type TransmitTarget } from '#/components/TransmitDialog.tsx'
 import { BombAlert } from '#/components/BombAlert.tsx'
+import { ChatDock } from '#/components/chat/ChatDock.tsx'
+import { ExposureMeter } from '#/components/persons/ExposureMeter.tsx'
+import { AnimatedNumber } from '#/components/ui/AnimatedNumber.tsx'
 import { InfoTip, Tip } from '#/components/ui/Tooltip.tsx'
 import { logout } from '#/lib/auth.functions.ts'
 import { DISTRICTS } from '#/lib/districts.ts'
@@ -27,7 +30,15 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const openTransmit = useCallback((t: TransmitTarget = {}) => setTarget(t), [])
 
-  useHotkeys({ e: () => openTransmit() })
+  // CUSTODIAN, the chat assistant: mounted once the operator first opens it.
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatMounted, setChatMounted] = useState(false)
+  const toggleChat = useCallback(() => {
+    setChatMounted(true)
+    setChatOpen((o) => !o)
+  }, [])
+
+  useHotkeys({ e: () => openTransmit(), c: toggleChat })
 
   const roleName = ROLE_LABEL[guardian.role].toUpperCase()
   // Demo codenames already carry the role ("COMMANDER", "DEFENDER1"): don't say it twice.
@@ -55,6 +66,11 @@ export function Shell({ children }: { children: ReactNode }) {
             </Link>
 
             <IntegrityGauge glitches={glitches} />
+
+            {/* Second meter only where there's room: the header stays two rows at most on phones. */}
+            <div className="hidden md:block">
+              <ExposureMeter />
+            </div>
 
             <div className="hidden items-end gap-1 opacity-80 2xl:flex" aria-hidden="true">
               <Tube className="h-12 w-6" />
@@ -105,10 +121,27 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link to="/leaderboard" className="btn px-4 py-2 text-sm" activeProps={{ 'aria-current': 'page', className: 'btn btn-primary px-4 py-2 text-sm' }}>
               Leaderboard
             </Link>
+            <Tip text="Case files on Desync members and sympathisers: status, wanted level and every report on file.">
+              <Link to="/persons" className="btn px-4 py-2 text-sm" activeProps={{ 'aria-current': 'page', className: 'btn btn-primary px-4 py-2 text-sm' }}>
+                Persons of interest
+              </Link>
+            </Tip>
             <Tip text="Connect Claude (Claude Code or Claude Desktop) to Achrona and let it act for you, with your role's permissions.">
               <Link to="/mcp" className="btn px-4 py-2 text-sm" activeProps={{ 'aria-current': 'page', className: 'btn btn-primary px-4 py-2 text-sm' }}>
                 MCP access
               </Link>
+            </Tip>
+            <Tip className="ml-auto" text="CUSTODIAN, the agency's terminal intelligence. Ask it questions or have it act for you; it asks before changing anything. Shortcut: C.">
+              <button
+                type="button"
+                onClick={toggleChat}
+                aria-expanded={chatOpen}
+                aria-pressed={chatOpen}
+                className="btn flex items-center gap-2 px-4 py-2 text-sm"
+              >
+                <span aria-hidden="true" data-on={chatOpen ? 'green' : undefined} className="lamp size-2.5" />
+                Custodian
+              </button>
             </Tip>
           </div>
         </nav>
@@ -125,6 +158,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <Key k="J/K">Browse</Key>
             <Key k="Enter">Open</Key>
             <Key k="E">Transmit</Key>
+            <Key k="C">Custodian</Key>
             <Key k="/">Search</Key>
             <span className="hazard ml-auto hidden h-4 w-24 sm:block" aria-hidden="true" />
           </div>
@@ -132,6 +166,7 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
 
       <TransmitDialog target={target} onClose={() => setTarget(null)} />
+      {chatMounted && <ChatDock open={chatOpen} onClose={() => setChatOpen(false)} role={guardian.role} />}
     </TransmitContext.Provider>
   )
 }
@@ -181,7 +216,7 @@ function IntegrityGauge({ glitches }: { glitches: GlitchSummary[] }) {
         </div>
       </div>
       <div className={`readout px-2.5 py-0.5 text-4xl leading-none sm:text-5xl ${critical ? 'text-[#ff5a3a] animate-flicker' : ''}`}>
-        {String(index).padStart(3, '0')}
+        <AnimatedNumber value={index} pad={3} />
         <span className="text-2xl">%</span>
       </div>
     </div>

@@ -15,6 +15,12 @@ import {
   type OperationType,
 } from '#/lib/operations.ts'
 import { planOperation } from '#/lib/operations.functions.ts'
+import { getPersonOptions } from '#/lib/persons.functions.ts'
+import { PERSON_STATUS_META, WANTED_HEAT, ATTRIBUTION_HEAT, type PersonStatus } from '#/lib/persons.ts'
+import { StatusLamp } from '#/components/persons/Dossier.tsx'
+import { InfoTip } from '#/components/ui/Tooltip.tsx'
+
+type PersonOption = { personId: string; alias: string; role: string; status: PersonStatus; heat: number }
 
 export const TIMINGS: { label: string; minutes: number; hint: string }[] = [
   { label: 'Now', minutes: 0, hint: 'Goes off the moment you authorize.' },
@@ -24,13 +30,13 @@ export const TIMINGS: { label: string; minutes: number; hint: string }[] = [
   { label: '2 hrs', minutes: 120, hint: 'Long fuse. Cancel any time before.' },
 ]
 
-const STEPS = ['Target', 'Type', 'Timing', 'Review'] as const
+const STEPS = ['Target', 'Type', 'Timing', 'Attribute', 'Review'] as const
 
 /** Opening the wizard: from the district header (no target yet) or from a landmark. */
 export type PlanRequest = { site?: SiteType }
 
 /**
- * Commander-only: plan a false flag in four short steps. Opens as a modal so
+ * Commander-only: plan a false flag in five short steps. Opens as a modal so
  * the district page stays calm; one decision per screen.
  */
 export function PlanOperationWizard({
@@ -55,7 +61,9 @@ export function PlanOperationWizard({
   const [coverEdited, setCoverEdited] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [done, setDone] = useState<{ operationId: string; delay: number; type: OperationType } | null>(null)
+  const [done, setDone] = useState<{ operationId: string; delay: number; type: OperationType; alias: string | null } | null>(null)
+  const [pinnedOn, setPinnedOn] = useState<string | null>(null)
+  const [people, setPeople] = useState<PersonOption[] | null>(null)
 
   useEffect(() => {
     const dialog = ref.current
@@ -70,6 +78,9 @@ export function PlanOperationWizard({
       setError(null)
       setPending(false)
       setDone(null)
+      setPinnedOn(null)
+      setPeople(null)
+      getPersonOptions().then(setPeople, () => setPeople([]))
       dialog.showModal()
     } else if (!request && dialog.open) {
       dialog.close()
@@ -82,6 +93,7 @@ export function PlanOperationWizard({
   const coverText = coverEdited ? cover : autoCover
   const factor = site ? SITE_IMPACT[site].factor : 1
   const timing = TIMINGS.find((t) => t.minutes === delay) ?? TIMINGS[2]
+  const suspect = people?.find((p) => p.personId === pinnedOn) ?? null
 
   const canNext = step === 0 ? Boolean(site) : step === 1 ? Boolean(type) : true
   const next = () => canNext && setStep((s) => Math.min(STEPS.length - 1, s + 1))
@@ -93,10 +105,10 @@ export function PlanOperationWizard({
     setPending(true)
     try {
       const { operationId } = await planOperation({
-        data: { siteId: siteId(district, site), type, delayMinutes: delay, coverStory: coverText },
+        data: { siteId: siteId(district, site), type, delayMinutes: delay, coverStory: coverText, pinnedOn },
       })
       await router.invalidate()
-      setDone({ operationId, delay, type })
+      setDone({ operationId, delay, type, alias: suspect?.alias ?? null })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authorization failed. Try again.')
     } finally {
@@ -219,7 +231,51 @@ export function PlanOperationWizard({
                 </Step>
               )}
 
-              {step === 3 && site && type && (
+              {step === 3 && (
+                <Step title="Who gets the blame?" hint="Witnesses will place this person near the site. Their threat level rises, and the public hears their name.">
+                  <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Attribute to">
+                    <button
+                      type="button"
+                      aria-pressed={pinnedOn === null}
+                      onClick={() => setPinnedOn(null)}
+                      className="btn flex flex-col items-start gap-1 px-3 py-2.5 text-left normal-case sm:col-span-2"
+                    >
+                      <span className="text-sm uppercase">Nobody · unattributed</span>
+                      <span className="font-mono text-lg leading-tight text-ink-dim">The public blames “the Desync” in general. No file changes.</span>
+                    </button>
+                    {people === null && <p className="text-xl text-ink-dim">Loading files…</p>}
+                    {people?.map((p) => {
+                      const after = Math.min(100, p.heat + ATTRIBUTION_HEAT)
+                      return (
+                        <button
+                          key={p.personId}
+                          type="button"
+                          aria-pressed={pinnedOn === p.personId}
+                          onClick={() => setPinnedOn(p.personId)}
+                          onDoubleClick={() => { setPinnedOn(p.personId); setStep(4) }}
+                          className="btn flex flex-col items-start gap-1 px-3 py-2.5 text-left normal-case"
+                        >
+                          <span className="flex w-full items-center justify-between gap-2">
+                            <span className="text-sm uppercase">{p.alias}</span>
+                            <StatusLamp status={p.status} withLabel={false} />
+                          </span>
+                          <span className="font-mono text-lg leading-tight text-ink-dim">{p.role}</span>
+                          <span className="font-mono text-lg leading-tight text-[#ffb09a]">
+                            {PERSON_STATUS_META[p.status].label} · threat {p.heat} → {p.status === 'DETAINED' ? p.heat : `${after}+`}
+                            {p.status === 'AT_LARGE' && after >= WANTED_HEAT ? ' · warrant goes out' : ''}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="mt-3 flex items-center gap-2 text-xl leading-tight text-ink-dim">
+                    Blaming someone still free lets them deny it in public.
+                    <InfoTip label="About attribution" text="Pinning an attack on someone at large or wanted wears down cover-up integrity: they publish a denial. Pinning it on someone in custody costs nothing, but the public may wonder how." />
+                  </p>
+                </Step>
+              )}
+
+              {step === 4 && site && type && (
                 <Step title="Review and authorize">
                   <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xl leading-tight">
                     <dt className="label pt-1">Target</dt>
@@ -228,6 +284,8 @@ export function PlanOperationWizard({
                     <dd className="text-ink">{OPERATION_META[type].name}</dd>
                     <dt className="label pt-1">Timing</dt>
                     <dd className="text-ink">{delay === 0 ? 'Immediately' : `In ${timing.label}`}</dd>
+                    <dt className="label pt-1">Blame</dt>
+                    <dd className="text-ink">{suspect ? `${suspect.alias} (${suspect.role})` : 'Nobody · unattributed'}</dd>
                   </dl>
 
                   <label className="mt-4 block">
@@ -286,7 +344,7 @@ export function PlanOperationWizard({
 
 function StepIndicator({ step, onJump }: { step: number; onJump: (i: number) => void }) {
   return (
-    <ol className="grid grid-cols-4 gap-2" aria-label="Steps">
+    <ol className="grid grid-cols-5 gap-2" aria-label="Steps">
       {STEPS.map((label, i) => {
         const state = i < step ? 'done' : i === step ? 'current' : 'todo'
         return (
@@ -374,7 +432,7 @@ function Success({
   siteLabel,
   onClose,
 }: {
-  done: { operationId: string; delay: number; type: OperationType }
+  done: { operationId: string; delay: number; type: OperationType; alias: string | null }
   siteLabel: string
   onClose: () => void
 }) {
@@ -387,6 +445,11 @@ function Success({
           {OPERATION_META[done.type].name} at {siteLabel}.{' '}
           {now ? 'It has gone off. Watch the mood meters.' : `It goes off in ${TIMINGS.find((t) => t.minutes === done.delay)?.label ?? `${done.delay} min`}. You can cancel it from the operations log.`}
         </p>
+        {done.alias && (
+          <p className="mt-2 text-amber">
+            {now ? `Witnesses already name ${done.alias}. The file has been updated.` : `When it goes off, witnesses will name ${done.alias}.`}
+          </p>
+        )}
         {done.type === 'bomb' && now && (
           <p className="mt-2 text-amber">The fuse is burning. Every guardian has been alerted.</p>
         )}

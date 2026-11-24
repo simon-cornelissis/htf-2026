@@ -59,7 +59,7 @@ export function IncidentHistory({
           Incident history
           <InfoTip
             label="About the incident history"
-            text="Attacks and accidents of the last week, newest first. Hover one to mark it on the map, click it to replay its animation or open its file. Marks on the map fade over two days."
+            text="Attacks, accidents and anomalies of the last week, newest first. Hover one to mark it on the map, click it to replay its animation, open its file or see who the agency holds responsible. Marks on the map fade over two days."
           />
         </h3>
         <span className="text-lg leading-tight text-ink-dim uppercase" suppressHydrationWarning>
@@ -88,6 +88,7 @@ export function IncidentHistory({
                   <span aria-hidden="true" className="inline-block size-3 border-2 border-edge" style={{ background: FX_SWATCH[i.fx] }} />
                   <span className="min-w-0">
                     <span className="text-phos">{i.label}</span>
+                    {i.suspect && <span className="text-amber"> · Suspect: {i.suspect.alias ?? '████████'}</span>}
                     <span className="text-phos-dim">
                       {' '}· {i.siteName}
                       {showDistrict && `, ${DISTRICTS[i.district]?.name ?? i.district}`} · <RelativeTime iso={i.at} />
@@ -104,6 +105,13 @@ export function IncidentHistory({
                       <Link to="/glitches/$glitchId" params={{ glitchId: i.glitchId }} className="btn px-3 py-1 text-xs">
                         Open {i.glitchId} ▸
                       </Link>
+                    )}
+                    {i.suspect && (
+                      <Tip text={i.suspect.alias ? 'Open the case file of the person the agency holds responsible.' : 'This record was withdrawn.'}>
+                        <Link to="/persons/$personId" params={{ personId: i.suspect.personId }} className="btn px-3 py-1 text-xs">
+                          Suspect {i.suspect.alias ?? '████'} ▸
+                        </Link>
+                      </Tip>
                     )}
                     {i.radius > 0 && <span className="text-lg text-phos-dim">Radius {i.radius} m</span>}
                     {i.operationId && <span className="text-lg text-amber">{i.operationId}</span>}

@@ -1,5 +1,5 @@
 import { createFileRoute, getRouteApi, Link, notFound, useNavigate } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CityPlan, SiteIcon, type SiteIncident } from '#/components/CityPlan.tsx'
 import { useTransmit } from '#/components/layout/Shell.tsx'
 import { MoodMeters } from '#/components/MoodMeters.tsx'
@@ -15,6 +15,7 @@ import { IncidentHistory } from '#/components/fx/IncidentHistory.tsx'
 import { useIncidents } from '#/components/fx/useIncidents.ts'
 import { useNow } from '#/lib/useNow.ts'
 import { canCommand } from '#/lib/glitch.ts'
+import { districtTransitionName, zoomMemory } from '#/lib/cityplan.ts'
 
 export const Route = createFileRoute('/_authed/districts/$districtId')({
   validateSearch: (search: Record<string, unknown>): { site?: SiteType } => ({
@@ -56,6 +57,10 @@ function DistrictPage() {
   const [plan, setPlan] = useState<PlanRequest | null>(null)
   const d = DISTRICTS[id]
   const isCommander = canCommand(guardian.role)
+  // Back to the world map shrinks into this district's outline, however we got here.
+  useEffect(() => {
+    zoomMemory.last = id
+  }, [id])
 
   const here = useMemo(() => glitches.filter((g) => g.district === id), [glitches, id])
   const incidents: SiteIncident[] = useMemo(
@@ -75,7 +80,7 @@ function DistrictPage() {
   const openHere = here.filter((g) => g.status !== 'FIXED')
 
   return (
-    <div key={id} className="flex flex-col gap-8 [animation:zoom-in_420ms_steps(7)_both]">
+    <div key={id} className="zoom-fallback flex flex-col gap-8">
       {/* Where am I, and the main action */}
       <header className="metal rivets flex flex-col gap-4 p-4 sm:p-5">
         <nav aria-label="Districts" className="flex flex-wrap items-center gap-2">
@@ -117,7 +122,7 @@ function DistrictPage() {
             </h2>
             <span className="text-xl leading-tight text-ink-dim">Click a landmark.</span>
           </div>
-          <div className="inset bg-edge p-1">
+          <div className="vt-zoom inset bg-edge p-1" style={{ viewTransitionName: districtTransitionName(id) }}>
             <CityPlan
               district={id}
               mood={mood}
@@ -141,6 +146,7 @@ function DistrictPage() {
               </Tip>
             </li>
           </ul>
+          <div className="enter-rows">
           <IncidentHistory
             incidents={fx.incidents}
             now={now}
@@ -150,11 +156,13 @@ function DistrictPage() {
             onPin={fx.setPinned}
             onReplay={fx.replay}
           />
+          </div>
         </section>
 
         <div className="flex min-w-0 flex-col gap-8">
           {/* Selected landmark */}
           <section aria-labelledby="site-heading" className="metal rivets p-4 sm:p-5">
+            <div key={site ?? 'all'} className="swap-in">
             {site ? (
               <>
                 <div className="flex items-start gap-4">
@@ -172,8 +180,8 @@ function DistrictPage() {
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {siteGlitches.map((g) => (
-                        <li key={g.glitchId}>
-                          <Link to="/glitches/$glitchId" params={{ glitchId: g.glitchId }} className="grid grid-cols-[1fr_auto] gap-3 hover:bg-phos/10">
+                        <li key={g.glitchId} className="enter">
+                          <Link to="/glitches/$glitchId" params={{ glitchId: g.glitchId }} className="row-hover grid grid-cols-[1fr_auto] gap-3 hover:bg-phos/10">
                             <span className="min-w-0 break-words text-phos">{g.glitchId} · {g.description}</span>
                             <StatusStamp status={g.status} />
                           </Link>
@@ -215,6 +223,7 @@ function DistrictPage() {
                 </ul>
               </>
             )}
+            </div>
           </section>
 
           {/* Residents */}
@@ -254,7 +263,7 @@ function DistrictPage() {
               Listening post
               <InfoTip label="About the listening post" text="Things residents were overheard saying today. It changes with their mood." />
             </h3>
-            <ul className="crt flex flex-col gap-2 rounded-[10px] p-4 text-xl leading-tight">
+            <ul className="enter-rows crt flex flex-col gap-2 rounded-[10px] p-4 text-xl leading-tight">
               {chatter.map((line) => (
                 <li key={line} className="text-phos">“{line}”</li>
               ))}
@@ -270,10 +279,10 @@ function DistrictPage() {
           {openHere.length === 0 ? (
             <p className="text-xl text-ink-dim">None. This district is stable.</p>
           ) : (
-            <ul className="crt flex flex-col gap-1 p-3 text-xl sm:p-4">
+            <ul className="enter-rows crt flex flex-col gap-1 p-3 text-xl sm:p-4">
               {openHere.map((g) => (
                 <li key={g.glitchId}>
-                  <Link to="/glitches/$glitchId" params={{ glitchId: g.glitchId }} className="grid grid-cols-[1fr_auto] items-center gap-3 px-2 py-1 hover:bg-phos/10">
+                  <Link to="/glitches/$glitchId" params={{ glitchId: g.glitchId }} className="row-hover grid grid-cols-[1fr_auto] items-center gap-3 px-2 py-1 hover:bg-phos/10">
                     <span className="min-w-0">
                       <span className="break-words text-phos">{g.description}</span>
                       <span className="block text-lg text-phos-dim uppercase">
@@ -290,7 +299,7 @@ function DistrictPage() {
         </section>
 
         {isCommander && operations && (
-          <section aria-labelledby="ops-heading" className="metal rivets min-w-0 p-4 sm:p-5">
+          <section aria-labelledby="ops-heading" className="enter-rows metal rivets min-w-0 p-4 sm:p-5">
             <h2 id="ops-heading" className="mb-3 flex items-center gap-2">
               <span className="stamp text-xl font-bold">Operations log</span>
               <InfoTip label="About the operations log" text="Your false flag operations in this district. Planned ones can be cancelled until they go off. Commanders only." />

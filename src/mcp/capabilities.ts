@@ -3,9 +3,9 @@
 import { canCommand, canReport, type GuardianRole } from '#/lib/glitch.ts'
 
 export const MCP_TOOLS = {
-  everyone: ['whoami', 'list_glitches', 'get_glitch', 'get_world', 'list_districts', 'get_district', 'list_active_bombs', 'list_incidents', 'get_bomb', 'get_leaderboard'],
+  everyone: ['whoami', 'list_glitches', 'get_glitch', 'get_world', 'list_districts', 'get_district', 'list_active_bombs', 'list_incidents', 'get_bomb', 'get_leaderboard', 'list_persons', 'get_person', 'get_exposure'],
   reporter: ['report_echo', 'cut_wire'],
-  commander: ['set_glitch_status', 'list_operation_types', 'plan_operation', 'cancel_operation', 'list_operations'],
+  commander: ['set_glitch_status', 'list_operation_types', 'plan_operation', 'cancel_operation', 'list_operations', 'act_on_person', 'add_case_note', 'attribute_glitch'],
 } as const
 
 export function toolsFor(role: GuardianRole): string[] {
@@ -25,13 +25,15 @@ export function capabilitiesFor(role: GuardianRole): string[] {
     'See armed devices with their wires and defusal manual',
     'Read the incident history of the last week, with casualties',
     'Read the leaderboard',
+    'Read the persons of interest index and their case files',
   ]
   if (canReport(role)) caps.push('Report echoes: open new glitches or add updates to existing ones', 'Defuse armed devices by cutting wires')
   if (canCommand(role)) {
     caps.push(
       'Change a glitch’s status',
       'See which glitches were staged, and the operations log',
-      'Plan false flag operations (incl. planted devices) and cancel planned ones',
+      'Plan false flag operations (incl. planted devices), pin them on a person, and cancel planned ones',
+      'Issue warrants, detain or erase persons of interest, add case notes and pin glitches on them',
     )
   }
   return caps

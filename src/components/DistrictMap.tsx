@@ -1,10 +1,11 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useId, useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { DISTRICT_IDS, DISTRICTS, type DistrictId } from '#/lib/districts.ts'
 import type { Glitch, GlitchStatus } from '#/lib/glitch.ts'
 import type { DistrictMood } from '#/lib/operations.ts'
 import type { Incident } from '#/lib/incidents.ts'
-import { siteOnWorld, WORLD_METRES_PER_UNIT } from '#/lib/cityplan.ts'
+import { districtBox, districtTransitionName, siteOnWorld, WORLD_METRES_PER_UNIT, zoomMemory } from '#/lib/cityplan.ts'
 import { IncidentLayer, type FxFocus } from '#/components/fx/IncidentLayer.tsx'
 
 export type DistrictStats = { open: number; leaked: number; total: number }
@@ -91,13 +92,21 @@ export function DistrictMap({
   const zoomMode = Boolean(onZoom)
   const interactive = zoomMode || Boolean(onSelect)
   const pointAt = selected ?? highlight
+  // Shared-element zoom: the district being entered (or just left) carries the
+  // view-transition name, so the city plan grows out of / shrinks into it.
+  const [zooming, setZooming] = useState<DistrictId>()
+  const vtTarget = zoomMode ? (zooming ?? selected ?? zoomMemory.last) : undefined
   const activate = (id: DistrictId) => {
-    if (onZoom) onZoom(id)
-    else onSelect?.(selected === id ? undefined : id)
+    if (onZoom) {
+      // Name the outline before the router snapshots the old page.
+      flushSync(() => setZooming(id))
+      zoomMemory.last = id
+      onZoom(id)
+    } else onSelect?.(selected === id ? undefined : id)
   }
   const ref = (name: string) => `url(#${uid}${name})`
 
-  return (
+  const map = (
     <svg
       viewBox="0 0 1000 640"
       className="block h-auto w-full select-none"
@@ -165,12 +174,12 @@ export function DistrictMap({
           // In zoom mode nothing is dimmed: every district is a door.
           const dim = !zoomMode && pointAt && pointAt !== id
           return (
-            <g key={id} opacity={dim ? 0.55 : 1}>
+            <g key={id} opacity={dim ? 0.55 : 1} className="map-dim">
               <polygon points={d.points} fill={ref('dither')} stroke="#2a2214" strokeWidth="4" strokeLinejoin="bevel" />
-              {overlay === 'glitches' && s.leaked > 0 && <polygon points={d.points} fill={ref('hatch-red')} />}
-              {overlay === 'glitches' && s.leaked === 0 && s.open > 0 && <polygon points={d.points} fill={ref('hatch-amber')} />}
+              {overlay === 'glitches' && s.leaked > 0 && <polygon className="fade-in" points={d.points} fill={ref('hatch-red')} />}
+              {overlay === 'glitches' && s.leaked === 0 && s.open > 0 && <polygon className="fade-in" points={d.points} fill={ref('hatch-amber')} />}
               {overlay === 'mood' && moods && (
-                <polygon points={d.points} fill={moodFill(moods[id].fear)} opacity={0.25 + (moods[id].fear / 100) * 0.6} />
+                <polygon className="fade-in map-fill" points={d.points} fill={moodFill(moods[id].fear)} opacity={0.25 + (moods[id].fear / 100) * 0.6} />
               )}
             </g>
           )
@@ -221,6 +230,8 @@ export function DistrictMap({
       {/* Selection / highlight outline */}
       {pointAt && (
         <polygon
+          key={pointAt}
+          className="fade-in"
           points={DISTRICTS[pointAt].points}
           fill="none"
           stroke="#ffb22e"
@@ -248,7 +259,7 @@ export function DistrictMap({
             aria-pressed={interactive && !zoomMode ? isSelected : undefined}
             className={
               interactive
-                ? 'group/d cursor-pointer outline-none [&:focus-visible>.hit]:stroke-[#ffb22e] [&:hover>.hit]:stroke-[#ffb22e] [&>.hit]:transition-[fill] [&:hover>.hit]:fill-[rgb(255_240_190/0.14)] [&:focus-visible>.hit]:fill-[rgb(255_240_190/0.14)]'
+                ? 'group/d cursor-pointer outline-none [&:focus-visible>.hit]:stroke-[#ffb22e] [&:hover>.hit]:stroke-[#ffb22e] [&>.hit]:transition-[fill,stroke] [&>.hit]:duration-150 [&>.hit]:ease-out [&:hover>.hit]:fill-[rgb(255_240_190/0.14)] [&:focus-visible>.hit]:fill-[rgb(255_240_190/0.14)]'
                 : undefined
             }
             onClick={interactive ? () => activate(id) : undefined}
@@ -315,7 +326,7 @@ export function DistrictMap({
               <g
                 aria-hidden="true"
                 pointerEvents="none"
-                className="opacity-0 group-hover/d:opacity-100 group-focus-visible/d:opacity-100"
+                className="opacity-0 transition-opacity duration-150 ease-out group-hover/d:opacity-100 group-focus-visible/d:opacity-100"
                 shapeRendering="crispEdges"
               >
                 <rect x={cx - 62} y={cy + 46} width="124" height="30" fill="#140f07" stroke="#ffb22e" strokeWidth="3" />
@@ -348,7 +359,7 @@ export function DistrictMap({
               <g
                 key={g.glitchId}
                 aria-hidden="true"
-                className={compact ? undefined : 'cursor-pointer'}
+                className={compact ? 'fade-in' : 'beacon fade-in cursor-pointer'}
                 onClick={
                   compact
                     ? undefined
@@ -403,6 +414,26 @@ export function DistrictMap({
         </g>
       )}
     </svg>
+  )
+
+  if (!zoomMode) return map
+  return (
+    <div className="relative">
+      {map}
+      {vtTarget && (
+        <div
+          aria-hidden="true"
+          data-zooming={zooming ? '' : undefined}
+          className="vt-district vt-zoom pointer-events-none absolute"
+          style={{ ...districtBox(vtTarget).style, viewTransitionName: districtTransitionName(vtTarget) }}
+        >
+          {/* Only painted while a view transition runs: the shape the city plan grows out of. */}
+          <svg viewBox={districtBox(vtTarget).viewBox} preserveAspectRatio="none" className="block size-full overflow-visible">
+            <polygon points={DISTRICTS[vtTarget].points} fill="rgb(255 178 46 / 0.35)" stroke="#ffb22e" strokeWidth="5" strokeLinejoin="bevel" />
+          </svg>
+        </div>
+      )}
+    </div>
   )
 }
 

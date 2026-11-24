@@ -47,7 +47,7 @@ export function BombAlert() {
     <div role="alert" className="flex flex-col gap-2">
       {/* Just went off: the toll, for a few minutes. */}
       {news.map((b) => (
-        <div key={`blast-${b.glitchId}`} className="metal overflow-hidden">
+        <div key={`blast-${b.glitchId}`} className="alert-in metal overflow-hidden">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-[#5a0d07] px-4 py-2">
             <span data-on="red" className="lamp size-5" aria-hidden="true" />
             <span className="font-pixel text-sm font-bold text-[#ffb09c] uppercase">Detonated</span>
@@ -77,7 +77,7 @@ export function BombAlert() {
         const left = new Date(b.fuseEndsAt).getTime() - now
         const critical = left < 30_000
         return (
-          <div key={b.glitchId} className="metal overflow-hidden">
+          <div key={b.glitchId} className="alert-in metal overflow-hidden">
             <div className="hazard h-2" aria-hidden="true" />
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
               <span data-on="red" className="lamp size-5 animate-blink" aria-hidden="true" />

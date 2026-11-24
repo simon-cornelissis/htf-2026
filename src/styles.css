@@ -453,3 +453,327 @@ dialog::backdrop {
   .fx-ghost { animation: fx-ghost 4s steps(4) infinite; }
   .fx-vanish { animation: fx-vanish 6s steps(1) infinite; }
 }
+
+/* ======================================================================
+ * Motion. Crisp and a bit mechanical (CRT refresh, relay clicks), smooth
+ * only where it helps you follow what changed. Transform + opacity first;
+ * everything here is switched off or reduced to a fade under
+ * prefers-reduced-motion (see the end of this block).
+ * ====================================================================== */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-snap: cubic-bezier(0.3, 1.4, 0.5, 1);
+  --t-fast: 120ms;
+  --t-med: 180ms;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+/* A row arriving on a terminal: slides in from the left, a little stepped. */
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(-8px); }
+}
+@keyframes swap-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+}
+@keyframes alert-in {
+  from { opacity: 0; transform: translateY(-6px) scaleY(0.85); }
+}
+@keyframes tip-in {
+  from { opacity: 0; transform: translateY(3px); }
+}
+@keyframes lamp-on {
+  0% { opacity: 0.35; }
+  40% { opacity: 1; }
+  60% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+@keyframes fx-zone-in {
+  from { opacity: 0; transform: scale(0.6); }
+}
+@keyframes fx-lock {
+  from { opacity: 0; transform: scale(1.4); }
+}
+@keyframes wire-snap {
+  from { transform: none; }
+}
+
+/* --- Page transitions (View Transitions API, enabled in src/router.tsx). ---
+ * The new page is drawn in by a stepped top-to-bottom refresh, like a CRT
+ * repainting; the old one dims under it. Unchanged parts (the console frame)
+ * look the same in both, so only what changed visibly wipes. */
+@keyframes vt-refresh {
+  0% { clip-path: inset(0 0 100% 0); filter: brightness(1.8); }
+  100% { clip-path: inset(0 0 0 0); filter: none; }
+}
+@keyframes vt-dim {
+  to { opacity: 0.4; }
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  animation: vt-dim 260ms steps(4) both;
+}
+::view-transition-new(root) {
+  animation: vt-refresh 260ms steps(7, jump-end) both;
+}
+
+/* World map <-> district: the city-plan frame grows out of the district
+ * outline (and shrinks back into it). The morph itself is smooth: it is what
+ * tells you where you went. */
+.vt-zoom {
+  view-transition-class: district-zoom;
+}
+::view-transition-group(*.district-zoom) {
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.25, 0.8, 0.15, 1);
+}
+::view-transition-old(*.district-zoom),
+::view-transition-new(*.district-zoom) {
+  mix-blend-mode: normal;
+  height: 100%;
+  object-fit: fill;
+}
+::view-transition-old(*.district-zoom) {
+  animation: fade-out 220ms var(--ease-out) both;
+}
+::view-transition-new(*.district-zoom) {
+  animation: fade-in 260ms var(--ease-out) both;
+}
+/* Going back: the plan fades late, so you see it shrink into place. */
+:root:active-view-transition-type(zoom-out)::view-transition-old(*.district-zoom) {
+  animation: fade-out 300ms 120ms var(--ease-out) both;
+}
+:root:active-view-transition-type(zoom-out)::view-transition-new(*.district-zoom) {
+  animation: fade-in 160ms var(--ease-out) both;
+}
+
+/* The outline on the world map that the zoom starts from / ends in. Invisible
+ * except while a transition runs (or right as you click into a district). */
+.vt-district {
+  opacity: 0;
+}
+.vt-district[data-zooming],
+:root:active-view-transition-type(zoom-in, zoom-out) .vt-district {
+  opacity: 1;
+}
+
+/* No view transitions in this browser: the old stepped zoom on entering a district. */
+@supports not selector(:active-view-transition-type(a)) {
+  .zoom-fallback {
+    animation: zoom-in 420ms steps(7) both;
+  }
+}
+
+@layer components {
+  /* Console controls answer the pointer quickly; the press itself is a near-instant relay click. */
+  .btn {
+    transition:
+      color var(--t-fast) ease-out,
+      background-color var(--t-fast) ease-out,
+      box-shadow var(--t-fast) ease-out,
+      opacity var(--t-med) ease-out,
+      transform 60ms steps(2);
+  }
+
+  /* Lamps flicker on when they light (not on every colour change). */
+  .lamp[data-on] {
+    animation: lamp-on 240ms steps(4);
+  }
+
+  /* Digit windows: colour changes (e.g. going critical) are soft; numbers roll via AnimatedNumber. */
+  .readout {
+    transition: color var(--t-med) ease-out, text-shadow var(--t-med) ease-out;
+  }
+
+  /* Hover highlight on terminal rows and links. */
+  .row-hover {
+    transition: background-color var(--t-fast) ease-out;
+  }
+
+  /* Meter segments: colour sweeps along the bar (per-segment delay set inline). */
+  .meter-seg {
+    transition: background-color 200ms ease-out, box-shadow 200ms ease-out;
+  }
+
+  /* Something new appeared in place of something else. */
+  .fade-in {
+    animation: fade-in var(--t-med) ease-out;
+  }
+  .swap-in {
+    animation: swap-in var(--t-med) var(--ease-out);
+  }
+  .enter {
+    animation: row-in var(--t-med) steps(4) both;
+  }
+  .alert-in {
+    transform-origin: top;
+    animation: alert-in 220ms var(--ease-out) both;
+  }
+  .tip-in {
+    animation: tip-in var(--t-fast) ease-out;
+  }
+
+  /* Lists: each row that mounts slides in; the first ones in a fresh list are
+   * staggered so a page reads like a terminal printing out. */
+  .enter-rows li {
+    animation: row-in var(--t-med) steps(4) both;
+  }
+  .enter-rows li:nth-child(2) { animation-delay: 25ms; }
+  .enter-rows li:nth-child(3) { animation-delay: 50ms; }
+  .enter-rows li:nth-child(4) { animation-delay: 75ms; }
+  .enter-rows li:nth-child(5) { animation-delay: 100ms; }
+  .enter-rows li:nth-child(6) { animation-delay: 125ms; }
+  .enter-rows li:nth-child(7) { animation-delay: 150ms; }
+  .enter-rows li:nth-child(n + 8) { animation-delay: 175ms; }
+  .enter-rows li li {
+    animation: none;
+  }
+
+  /* Leaderboard podium: the three rise into place, winner last. */
+  .podium > li {
+    animation: rise-in 320ms var(--ease-out) both;
+  }
+  .podium > li:nth-child(1) { animation-delay: 160ms; }
+  .podium > li:nth-child(2) { animation-delay: 60ms; }
+  .podium > li:nth-child(3) { animation-delay: 0ms; }
+
+  /* Map: dimming, fills and hover are eased, beacons pop a little under the pointer. */
+  .map-dim {
+    transition: opacity var(--t-med) ease-out;
+  }
+  .map-fill {
+    transition: fill var(--t-med) ease-out, opacity var(--t-med) ease-out;
+  }
+  .beacon {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform var(--t-fast) var(--ease-snap);
+  }
+  .beacon:hover {
+    transform: scale(1.25);
+  }
+  .landmark {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 80ms ease-out;
+  }
+  .landmark:active {
+    transform: scale(0.97);
+  }
+  .landmark .plate {
+    transition: stroke var(--t-fast) ease-out;
+  }
+
+  /* Incident effects ease in instead of popping when the layer mounts / a new one arrives. */
+  .fx-in {
+    animation: fade-in 600ms ease-out;
+  }
+  .fx-zone {
+    animation: fx-zone-in 360ms var(--ease-out);
+  }
+
+  /* Hold-to-confirm fill: grows for exactly the hold time, drains fast on release. */
+  .hold-fill {
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 160ms ease-out;
+  }
+  .hold-fill[data-phase="holding"] {
+    transform: scaleX(1);
+    transition: transform var(--hold-ms, 900ms) linear;
+  }
+  .hold-fill[data-phase="done"] {
+    transform: scaleX(1);
+    transition: none;
+  }
+
+  /* Defuse: a cut wire springs apart. */
+  .wire-snap {
+    animation: wire-snap 260ms var(--ease-snap);
+  }
+}
+
+/* Highlight brackets lock on, then keep blinking (must beat the blink utility, so unlayered). */
+.fx-lock.animate-blink {
+  animation: fx-lock 200ms var(--ease-out), blink 1s steps(1) 200ms infinite;
+}
+
+/* Dialogs (TransmitDialog, the operation wizard, any native <dialog>):
+ * a short scale/fade in and out, backdrop fades with it. */
+@layer base {
+  dialog {
+    opacity: 0;
+    transform: scale(0.96);
+    transition:
+      opacity 160ms ease-out,
+      transform 160ms var(--ease-out),
+      overlay 160ms allow-discrete,
+      display 160ms allow-discrete;
+  }
+  dialog[open] {
+    opacity: 1;
+    transform: none;
+  }
+  @starting-style {
+    dialog[open] {
+      opacity: 0;
+      transform: scale(0.96) translateY(8px);
+    }
+  }
+  dialog::backdrop {
+    opacity: 0;
+    transition:
+      opacity 160ms ease-out,
+      overlay 160ms allow-discrete,
+      display 160ms allow-discrete;
+  }
+  dialog[open]::backdrop {
+    opacity: 1;
+  }
+  @starting-style {
+    dialog[open]::backdrop {
+      opacity: 0;
+    }
+  }
+}
+
+/* Reduced motion: nothing moves. Page changes become a quick cross-fade,
+ * the zoom morph is skipped, and dialogs appear without scaling. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) {
+    animation: none !important;
+  }
+  ::view-transition-old(*) {
+    animation: fade-out 120ms ease-out both !important;
+  }
+  ::view-transition-new(*) {
+    animation: fade-in 120ms ease-out both !important;
+  }
+  dialog,
+  dialog[open] {
+    transform: none !important;
+  }
+  /* Hold progress is information, not decoration: show it as a fill that fades in. */
+  .hold-fill,
+  .hold-fill[data-phase] {
+    transform: none !important;
+    opacity: 0;
+  }
+  .hold-fill[data-phase="holding"] {
+    opacity: 1;
+    transition: opacity var(--hold-ms, 900ms) linear !important;
+  }
+  .hold-fill[data-phase="done"] {
+    opacity: 1;
+  }
+}

@@ -1,13 +1,14 @@
 import { createServerFn } from '@tanstack/react-start'
 import { and, eq, gte } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
-import { operations } from '#/db/schema.ts'
-import { isDistrictId, siteName, type DistrictId } from '#/lib/districts.ts'
+import { glitches, operations, persons } from '#/db/schema.ts'
+import { DISTRICTS, isDistrictId, siteName, type DistrictId } from '#/lib/districts.ts'
 import { canCommand } from '#/lib/glitch.ts'
 import { HISTORY_DAYS, HISTORY_LIMIT, type Incident } from '#/lib/incidents.ts'
-import { computeImpact, IMPACT, type OperationType } from '#/lib/operations.ts'
+import { computeImpact, IMPACT, type FxKind, type OperationType } from '#/lib/operations.ts'
+import { isPersonStatus, personById, type Suspect } from '#/lib/persons.ts'
 import { requireGuardian } from '#/lib/session.ts'
-import { executeDueOperations } from '#/lib/world.ts'
+import { executeDueOperations, suspectsByGlitch } from '#/lib/world.ts'
 
 type Row = {
   operationId: string
@@ -64,9 +65,55 @@ function toIncident(r: Row, revealOperation: boolean): Incident {
   }
 }
 
+/** Real glitches read like the staged ones: the public name follows what was reported. */
+const ANOMALY_WORDS: [RegExp, OperationType][] = [
+  [/\b(fire|flame|burn|blaze|smoke)/i, 'arson'],
+  [/\b(fog|gas|mist|cough)/i, 'gas'],
+  [/\b(spark|surge|wire|lamp.*burst)/i, 'surge'],
+  [/\b(light|dark|blackout|clock)/i, 'blackout'],
+  [/\b(voice|echo|replay|sound|song)/i, 'echoes'],
+  [/\b(water|well|river|rain)/i, 'poison'],
+  [/\b(siren|alarm|bell)/i, 'evacuation'],
+  [/\b(vanish|missing|disappear)/i, 'vanish'],
+  [/\b(collapse|rubble|fold|crack)/i, 'collapse'],
+  [/\b(crowd|riot|fight)/i, 'riot'],
+  [/\b(shelf|shelves|goods|food|bread)/i, 'supply'],
+  [/\b(figure|walking|seen|shadow|backwards)/i, 'sighting'],
+]
+
+function hash(text: string) {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619)
+  return h >>> 0
+}
+
+function anomalyIncident(
+  g: { glitchId: string; district: DistrictId; siteId: string | null; description: string; timestamp: string },
+): Incident {
+  const match = ANOMALY_WORDS.find(([re]) => re.test(g.description))?.[1]
+  const h = hash(g.glitchId)
+  const fx: FxKind = match ? IMPACT[match].fx : h % 2 ? 'echo' : 'flicker'
+  const [lo, hi] = match ? IMPACT[match].radius : [40, 120]
+  return {
+    key: g.glitchId,
+    glitchId: g.glitchId,
+    district: g.district,
+    siteId: g.siteId ?? '',
+    siteName: siteName(g.siteId) ?? DISTRICTS[g.district]?.name ?? g.district,
+    at: g.timestamp,
+    label: match ? IMPACT[match].label : 'Anomaly',
+    fx,
+    casualties: 0,
+    injured: 0,
+    radius: Math.round((lo + ((h >>> 8) % 1000) / 1000 * (hi - lo)) / 10) * 10,
+    countWord: 'dead',
+  }
+}
+
 /**
  * Incidents of the last week, newest first: what happened where, and how bad.
- * Everyone signed in sees them; only commanders see which operation it was.
+ * Staged operations and real glitches are listed alike, so the history
+ * doesn't give away which is which. Only commanders see the operation id.
  */
 export const getIncidents = createServerFn({ method: 'GET' })
   .validator((input: { district?: string } | undefined) => {
@@ -101,9 +148,36 @@ export const getIncidents = createServerFn({ method: 'GET' })
         ),
       )
       .all()
+    // Every executed operation, not just this week's: a staged glitch must never show up as a real one.
+    const staged = new Set(
+      db.select({ glitchId: operations.glitchId }).from(operations).all().flatMap((r) => (r.glitchId ? [r.glitchId] : [])),
+    )
+    const natural = db
+      .select({
+        glitchId: glitches.glitchId,
+        district: glitches.district,
+        siteId: glitches.siteId,
+        description: glitches.description,
+        timestamp: glitches.timestamp,
+      })
+      .from(glitches)
+      .where(and(gte(glitches.timestamp, since), data.district ? eq(glitches.district, data.district) : undefined))
+      .all()
+      .filter((g) => !staged.has(g.glitchId))
+
     const reveal = canCommand(guardian.role)
-    return rows
-      .map((r) => toIncident(r, reveal))
+    const suspects = suspectsByGlitch()
+    const statuses = new Map(db.select({ id: persons.personId, status: persons.status }).from(persons).all().map((r) => [r.id, r.status]))
+    const suspectFor = (glitchId: string | null): Suspect | null => {
+      const id = glitchId ? suspects.get(glitchId) : undefined
+      const p = personById(id)
+      const status = id ? statuses.get(id) : undefined
+      if (!p || !isPersonStatus(status)) return null
+      return { personId: p.personId, alias: status === 'ERASED' && !reveal ? null : p.alias, status }
+    }
+
+    return [...rows.map((r) => toIncident(r, reveal)), ...natural.map(anomalyIncident)]
+      .map((i) => ({ ...i, suspect: suspectFor(i.glitchId) }))
       .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
       .slice(0, HISTORY_LIMIT)
   })

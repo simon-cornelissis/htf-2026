@@ -233,7 +233,7 @@ export function DefuseGame({ initial }: { initial: BombState }) {
                     <li
                       key={i}
                       aria-current={current ? 'step' : undefined}
-                      className={`flex gap-3 px-2 py-1 leading-tight ${current ? 'bg-[#1f5a2a] text-phos outline outline-2 outline-[#7dff8a]' : done ? 'text-phos-dim line-through' : 'text-phos-dim'}`}
+                      className={`flex gap-3 px-2 py-1 leading-tight transition-colors duration-200 ${current ? 'bg-[#1f5a2a] text-phos outline outline-2 outline-[#7dff8a]' : done ? 'text-phos-dim line-through' : 'text-phos-dim'}`}
                     >
                       <span className="shrink-0">{done ? '[✓]' : current ? '[▶]' : '[ ]'}</span>
                       <span>
@@ -283,15 +283,15 @@ function Wire({
     >
       {isCut ? (
         <>
-          <span className="block h-[44%] w-5" style={{ ...bar, transform: 'translateX(-5px) rotate(-6deg)', transformOrigin: 'top' }} />
+          <span className="wire-snap block h-[44%] w-5" style={{ ...bar, transform: 'translateX(-5px) rotate(-6deg)', transformOrigin: 'top' }} />
           <span className="block h-[12%]" aria-hidden="true">
             <span className="font-pixel text-[12px] text-[#ff7a5c]">✂</span>
           </span>
-          <span className="block h-[44%] w-5" style={{ ...bar, transform: 'translateX(5px) rotate(6deg)', transformOrigin: 'bottom' }} />
+          <span className="wire-snap block h-[44%] w-5" style={{ ...bar, transform: 'translateX(5px) rotate(6deg)', transformOrigin: 'bottom' }} />
         </>
       ) : (
         <span
-          className="block h-full w-5 transition-[width] group-hover:w-6 group-disabled:group-hover:w-5"
+          className="block h-full w-5 transition-transform duration-150 ease-out group-hover:scale-x-[1.2] group-disabled:group-hover:scale-x-100"
           style={bar}
         />
       )}

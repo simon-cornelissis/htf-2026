@@ -14,9 +14,11 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedLeaderboardRouteImport } from './routes/_authed/leaderboard'
 import { Route as AuthedMcpRouteImport } from './routes/_authed/mcp'
+import { Route as AuthedPersonsRouteImport } from './routes/_authed/persons'
 import { Route as AuthedBombsGlitchIdRouteImport } from './routes/_authed/bombs.$glitchId'
 import { Route as AuthedDistrictsDistrictIdRouteImport } from './routes/_authed/districts.$districtId'
 import { Route as AuthedGlitchesGlitchIdRouteImport } from './routes/_authed/glitches.$glitchId'
+import { Route as AuthedPersonsPersonIdRouteImport } from './routes/_authed/persons.$personId'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -42,6 +44,11 @@ const AuthedMcpRoute = AuthedMcpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedPersonsRoute = AuthedPersonsRouteImport.update({
+  id: '/persons',
+  path: '/persons',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedBombsGlitchIdRoute = AuthedBombsGlitchIdRouteImport.update({
   id: '/bombs/$glitchId',
   path: '/bombs/$glitchId',
@@ -58,24 +65,33 @@ const AuthedGlitchesGlitchIdRoute = AuthedGlitchesGlitchIdRouteImport.update({
   path: '/glitches/$glitchId',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedPersonsPersonIdRoute = AuthedPersonsPersonIdRouteImport.update({
+  id: '/$personId',
+  path: '/$personId',
+  getParentRoute: () => AuthedPersonsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
   '/leaderboard': typeof AuthedLeaderboardRoute
   '/mcp': typeof AuthedMcpRoute
+  '/persons': typeof AuthedPersonsRouteWithChildren
   '/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
+  '/persons/$personId': typeof AuthedPersonsPersonIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/leaderboard': typeof AuthedLeaderboardRoute
   '/mcp': typeof AuthedMcpRoute
+  '/persons': typeof AuthedPersonsRouteWithChildren
   '/': typeof AuthedIndexRoute
   '/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
+  '/persons/$personId': typeof AuthedPersonsPersonIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -83,10 +99,12 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/leaderboard': typeof AuthedLeaderboardRoute
   '/_authed/mcp': typeof AuthedMcpRoute
+  '/_authed/persons': typeof AuthedPersonsRouteWithChildren
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/_authed/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/_authed/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
+  '/_authed/persons/$personId': typeof AuthedPersonsPersonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -95,28 +113,34 @@ export interface FileRouteTypes {
     | '/login'
     | '/leaderboard'
     | '/mcp'
+    | '/persons'
     | '/bombs/$glitchId'
     | '/districts/$districtId'
     | '/glitches/$glitchId'
+    | '/persons/$personId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/leaderboard'
     | '/mcp'
+    | '/persons'
     | '/'
     | '/bombs/$glitchId'
     | '/districts/$districtId'
     | '/glitches/$glitchId'
+    | '/persons/$personId'
   id:
     | '__root__'
     | '/_authed'
     | '/login'
     | '/_authed/leaderboard'
     | '/_authed/mcp'
+    | '/_authed/persons'
     | '/_authed/'
     | '/_authed/bombs/$glitchId'
     | '/_authed/districts/$districtId'
     | '/_authed/glitches/$glitchId'
+    | '/_authed/persons/$personId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -161,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedMcpRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/persons': {
+      id: '/_authed/persons'
+      path: '/persons'
+      fullPath: '/persons'
+      preLoaderRoute: typeof AuthedPersonsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/bombs/$glitchId': {
       id: '/_authed/bombs/$glitchId'
       path: '/bombs/$glitchId'
@@ -182,12 +213,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedGlitchesGlitchIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/persons/$personId': {
+      id: '/_authed/persons/$personId'
+      path: '/$personId'
+      fullPath: '/persons/$personId'
+      preLoaderRoute: typeof AuthedPersonsPersonIdRouteImport
+      parentRoute: typeof AuthedPersonsRoute
+    }
   }
 }
+
+interface AuthedPersonsRouteChildren {
+  AuthedPersonsPersonIdRoute: typeof AuthedPersonsPersonIdRoute
+}
+
+const AuthedPersonsRouteChildren: AuthedPersonsRouteChildren = {
+  AuthedPersonsPersonIdRoute: AuthedPersonsPersonIdRoute,
+}
+
+const AuthedPersonsRouteWithChildren = AuthedPersonsRoute._addFileChildren(
+  AuthedPersonsRouteChildren,
+)
 
 interface AuthedRouteChildren {
   AuthedLeaderboardRoute: typeof AuthedLeaderboardRoute
   AuthedMcpRoute: typeof AuthedMcpRoute
+  AuthedPersonsRoute: typeof AuthedPersonsRouteWithChildren
   AuthedIndexRoute: typeof AuthedIndexRoute
   AuthedBombsGlitchIdRoute: typeof AuthedBombsGlitchIdRoute
   AuthedDistrictsDistrictIdRoute: typeof AuthedDistrictsDistrictIdRoute
@@ -197,6 +248,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedLeaderboardRoute: AuthedLeaderboardRoute,
   AuthedMcpRoute: AuthedMcpRoute,
+  AuthedPersonsRoute: AuthedPersonsRouteWithChildren,
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedBombsGlitchIdRoute: AuthedBombsGlitchIdRoute,
   AuthedDistrictsDistrictIdRoute: AuthedDistrictsDistrictIdRoute,

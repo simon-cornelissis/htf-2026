@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { and, desc, eq } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
-import { guardians, operations } from '#/db/schema.ts'
+import { guardians, operations, persons } from '#/db/schema.ts'
 import { isDistrictId, parseSiteId, DISTRICTS, type DistrictId } from '#/lib/districts.ts'
 import {
   chatterFor,
@@ -14,6 +14,7 @@ import {
 import { requireCommander, requireGuardian } from '#/lib/session.ts'
 import { executeDueOperations, loadMoods, nextId } from '#/lib/world.ts'
 import { canCommand } from '#/lib/glitch.ts'
+import { personById } from '#/lib/persons.ts'
 
 export type Operation = {
   operationId: string
@@ -30,6 +31,9 @@ export type Operation = {
   casualties: number | null
   injured: number | null
   blastRadius: number | null
+  /** Person of interest it is pinned on, if any. */
+  pinnedOn: string | null
+  pinnedAlias: string | null
 }
 
 /** Mood of every district. Defenders see the same numbers, but not what caused them. */
@@ -68,12 +72,14 @@ export const getDistrict = createServerFn({ method: 'GET' })
               casualties: operations.casualties,
               injured: operations.injured,
               blastRadius: operations.blastRadius,
+              pinnedOn: operations.pinnedOn,
             })
             .from(operations)
             .innerJoin(guardians, eq(operations.plannerId, guardians.guardianId))
             .where(eq(operations.district, district))
             .orderBy(desc(operations.scheduledFor))
             .all()
+            .map((op) => ({ ...op, pinnedAlias: personById(op.pinnedOn)?.alias ?? null }))
         : null
       return { mood, chatter: chatterFor(district, mood), operations: ops }
     },
@@ -82,7 +88,7 @@ export const getDistrict = createServerFn({ method: 'GET' })
 const MAX_DELAY_MINUTES = 24 * 60
 
 export const planOperation = createServerFn({ method: 'POST' })
-  .validator((input: { siteId: string; type: OperationType; delayMinutes: number; coverStory?: string }) => {
+  .validator((input: { siteId: string; type: OperationType; delayMinutes: number; coverStory?: string; pinnedOn?: string | null }) => {
     const site = parseSiteId(input.siteId)
     if (!site) throw new Error('Pick a site for the operation.')
     if (!OPERATION_TYPES.includes(input.type)) throw new Error('Pick an operation type.')
@@ -93,11 +99,19 @@ export const planOperation = createServerFn({ method: 'POST' })
     const name = DISTRICTS[site.district].sites[site.type]
     const coverStory = (input.coverStory ?? '').trim() || OPERATION_META[input.type].cover(name)
     if (coverStory.length > 300) throw new Error('Keep the cover story under 300 characters.')
-    return { siteId: input.siteId, district: site.district, type: input.type, delayMinutes, coverStory }
+    const pinnedOn = input.pinnedOn ? String(input.pinnedOn) : null
+    if (pinnedOn && !personById(pinnedOn)) throw new Error('Unknown person of interest.')
+    return { siteId: input.siteId, district: site.district, type: input.type, delayMinutes, coverStory, pinnedOn }
   })
   .handler(async ({ data }): Promise<{ operationId: string }> => {
     const commander = requireCommander()
     const now = new Date()
+    if (data.pinnedOn) {
+      executeDueOperations(now) // makes sure the files exist
+      const target = db.select({ status: persons.status }).from(persons).where(eq(persons.personId, data.pinnedOn)).get()
+      if (!target) throw new Error('Unknown person of interest.')
+      if (target.status === 'ERASED') throw new Error('That record was erased. Nobody can be blamed who never existed.')
+    }
     const ids = db.select({ id: operations.operationId }).from(operations).all().map((r) => r.id)
     const operationId = nextId('OP', ids)
     db.insert(operations)
@@ -111,6 +125,7 @@ export const planOperation = createServerFn({ method: 'POST' })
         createdAt: now.toISOString(),
         plannerId: commander.guardianId,
         status: 'PLANNED',
+        pinnedOn: data.pinnedOn,
       })
       .run()
     // "Now" operations go off immediately.

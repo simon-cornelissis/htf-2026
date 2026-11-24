@@ -156,3 +156,31 @@ export function siteOnWorld(district: DistrictId, type: SiteType): Pt {
   const [x, y] = plan.sites[type]
   return [(x - plan.offset[0]) / plan.scale, (y - plan.offset[1]) / plan.scale]
 }
+
+/**
+ * Shared-element zoom between the world map and a district's city plan.
+ * The world map puts this name on an outline of the district, the district
+ * page on its city-plan frame, and the browser morphs one into the other.
+ */
+export function districtTransitionName(id: DistrictId) {
+  return `district-${id}`
+}
+
+/** The last district zoomed into, so the way back shrinks into the right outline. */
+export const zoomMemory: { last?: DistrictId } = {}
+
+/** A district's bounding box on the world map (viewBox 1000 x 640) in %, plus a viewBox that frames just its outline. */
+export function districtBox(id: DistrictId) {
+  const world = DISTRICTS[id].points.split(' ').map((p) => p.split(',').map(Number) as Pt)
+  const xs = world.map((p) => p[0])
+  const ys = world.map((p) => p[1])
+  const minX = Math.min(...xs)
+  const minY = Math.min(...ys)
+  const w = Math.max(...xs) - minX
+  const h = Math.max(...ys) - minY
+  const pct = (n: number) => `${+n.toFixed(3)}%`
+  return {
+    style: { left: pct((minX / 1000) * 100), top: pct((minY / 640) * 100), width: pct((w / 1000) * 100), height: pct((h / 640) * 100) },
+    viewBox: `${minX} ${minY} ${w} ${h}`,
+  }
+}

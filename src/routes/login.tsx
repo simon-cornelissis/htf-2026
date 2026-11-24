@@ -14,10 +14,12 @@ export const Route = createFileRoute('/login')({
 const DEMO_CODENAMES = ['ADMIN', 'COMMANDER', 'DEFENDER1', 'DEFENDER2', 'GUARDIAN']
 
 const BOOT = [
-  'ACHRONA REGIONAL TERMINAL  v0.41',
+  'GUARDIANS OF ACHRONA · REGIONAL TERMINAL v0.41',
   'MEM CHECK ........ 640K OK',
   'GRID UPLINK ...... WEAK',
-  'DESYNC STATUS .... SPREADING',
+  'CUSTODIAN ........ ONLINE',
+  'DESYNC NETWORK ... ACTIVE · 8 PERSONS OF INTEREST',
+  'SITE K-7 ......... ████████',
 ]
 
 function LoginPage() {
@@ -75,8 +77,12 @@ function LoginPage() {
               {BOOT.map((line) => <div key={line}>{line}</div>)}
             </div>
             <p className="mt-4 text-phos">
-              GREETINGS, WANDERER. THE GRID STILL NEEDS GUARDIANS.
+              CLASSIFIED SYSTEM. FOR AUTHORISED PERSONNEL OF THE GUARDIANS ONLY.
               IDENTIFY YOURSELF TO CONTINUE.
+            </p>
+            <p className="mt-2 text-lg leading-tight text-phos-dim">
+              ALL SESSIONS ARE RECORDED. UNAUTHORISED ACCESS IS AN ACT OF DESYNC SYMPATHY.
+              WHAT YOU READ HERE STAYS HERE.
             </p>
 
             <label className="mt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
@@ -102,7 +108,7 @@ function LoginPage() {
             </label>
 
             <div aria-live="polite" className="mt-4 min-h-7 text-[#ff7a5c]">
-              {error ? `! ${error.toUpperCase()}` : pending ? <span className="text-phos animate-blink">VERIFYING...</span> : null}
+              {error ? `! ${error.toUpperCase()}` : pending ? <span className="text-phos animate-blink">VERIFYING CLEARANCE...</span> : null}
             </div>
           </div>
 

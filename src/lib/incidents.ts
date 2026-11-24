@@ -1,10 +1,12 @@
 import type { DistrictId } from './districts.ts'
 import { EFFECT_FADE_HOURS, operationIntensity, type FxKind } from './operations.ts'
+import type { Suspect } from './persons.ts'
 
 /**
- * A public incident: something that happened at a landmark, as residents and
- * guardians saw it. Built from executed operations, but nothing in here says
- * so: only commanders get the operation id.
+ * A public incident: something that happened in a district, as residents and
+ * guardians saw it. Built from executed operations and from real glitches
+ * alike, and nothing in here tells them apart: only commanders get the
+ * operation id.
  */
 export type Incident = {
   /** Stable key for lists and highlighting. */
@@ -26,6 +28,8 @@ export type Incident = {
   radius: number
   /** "dead", or "missing" for disappearances. */
   countWord: 'dead' | 'missing'
+  /** Person of interest the agency holds responsible, if any. */
+  suspect?: Suspect | null
 }
 
 /** How far back the history goes. */

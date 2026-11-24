@@ -51,6 +51,11 @@ export function OperationsLog({ operations }: { operations: Operation[] }) {
             <span className="font-mono text-xl text-stamp">{op.operationId}</span>
             <span className="min-w-0 text-xl leading-tight text-ink">
               {OPERATION_META[op.type].name} <span className="text-ink-dim">@ {siteName(op.siteId)}</span>
+              {op.pinnedOn && op.pinnedAlias && (
+                <Link to="/persons/$personId" params={{ personId: op.pinnedOn }} className="ml-2 text-lg text-amber underline-offset-2 hover:underline">
+                  blamed on {op.pinnedAlias}
+                </Link>
+              )}
               {op.status === 'EXECUTED' && op.casualties != null && (
                 <span className={`block text-lg ${op.casualties > 0 ? 'text-[#ff9a7e]' : 'text-ink-dim'}`}>
                   {harmLine({ casualties: op.casualties, injured: op.injured ?? 0, countWord: IMPACT[op.type].countWord })}

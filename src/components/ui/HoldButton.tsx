@@ -19,43 +19,32 @@ export function HoldButton({
   /** Accessible name, e.g. "Hold to delete GL-0142". */
   label: string
 }) {
-  const [progress, setProgress] = useState(0)
-  const frame = useRef<number | null>(null)
+  // The timer decides; the fill is a CSS transition running for exactly holdMs.
+  const [phase, setPhase] = useState<'idle' | 'holding' | 'done'>('idle')
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const start = useRef(0)
   const done = useRef(false)
 
   const stop = () => {
-    if (frame.current) cancelAnimationFrame(frame.current)
     if (timer.current) clearTimeout(timer.current)
-    frame.current = null
     timer.current = null
-    if (!done.current) setProgress(0)
+    if (!done.current) setPhase('idle')
   }
 
   const begin = () => {
     if (timer.current) return
     done.current = false
-    start.current = performance.now()
-    // The timer decides; animation frames only paint the fill (they can be throttled).
+    setPhase('holding')
     timer.current = setTimeout(() => {
       done.current = true
       timer.current = null
-      if (frame.current) cancelAnimationFrame(frame.current)
-      frame.current = null
-      setProgress(1)
+      setPhase('done')
       onConfirm()
       // Empty the fill again so the button can be used for the next one.
       setTimeout(() => {
         done.current = false
-        setProgress(0)
+        setPhase('idle')
       }, 400)
     }, holdMs)
-    const tick = (t: number) => {
-      setProgress(Math.min(1, (t - start.current) / holdMs))
-      frame.current = requestAnimationFrame(tick)
-    }
-    frame.current = requestAnimationFrame(tick)
   }
 
   useEffect(() => stop, [])
@@ -83,8 +72,9 @@ export function HoldButton({
     >
       <span
         aria-hidden="true"
-        className="absolute inset-y-0 left-0 bg-lamp/70"
-        style={{ width: `${progress * 100}%` }}
+        data-phase={phase}
+        className="hold-fill absolute inset-0 bg-lamp/70"
+        style={{ ['--hold-ms' as string]: `${holdMs}ms` }}
       />
       <span className="relative">{children}</span>
     </button>

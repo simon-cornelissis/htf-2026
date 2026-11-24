@@ -1,5 +1,6 @@
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { Medal, type MedalTier } from '#/components/leaderboard/Medal.tsx'
+import { AnimatedNumber } from '#/components/ui/AnimatedNumber.tsx'
 import { Tip } from '#/components/ui/Tooltip.tsx'
 import { BADGES, getLeaderboard, SCORING, type Badge, type LeaderboardRow } from '#/lib/leaderboard.functions.ts'
 import { canCommand } from '#/lib/glitch.ts'
@@ -76,7 +77,7 @@ function Podium({ rows, meId }: { rows: LeaderboardRow[]; meId: string }) {
   return (
     <section aria-labelledby="podium-heading" className="metal rivets p-5">
       <h2 id="podium-heading" className="stamp mb-4 text-lg font-bold">Top defenders</h2>
-      <ol className="grid gap-4 sm:grid-cols-3 sm:items-end">
+      <ol className="podium grid gap-4 sm:grid-cols-3 sm:items-end">
         {rows.map((r, i) => {
           const tier = Math.min(r.rank, 3) as MedalTier
           const me = r.guardianId === meId
@@ -90,7 +91,7 @@ function Podium({ rows, meId }: { rows: LeaderboardRow[]; meId: string }) {
                     {me && <span className="ml-2 text-amber">· You</span>}
                   </p>
                   <p className="truncate text-2xl leading-none text-[#f1ecd2]">{r.codename}</p>
-                  <p className="readout self-start px-3 py-1 text-2xl leading-none sm:self-center">{r.points} PTS</p>
+                  <p className="readout self-start px-3 py-1 text-2xl leading-none sm:self-center"><AnimatedNumber value={r.points} /> PTS</p>
                 </div>
               </div>
             </li>
@@ -105,7 +106,7 @@ function Rankings({ rows, meId }: { rows: LeaderboardRow[]; meId: string }) {
   return (
     <section aria-labelledby="ranks-heading" className="metal rivets p-5">
       <h2 id="ranks-heading" className="stamp mb-4 text-lg font-bold">All defenders · {rows.length}</h2>
-      <ol className="flex flex-col gap-3">
+      <ol className="enter-rows flex flex-col gap-3">
         {rows.map((r) => (
           <RankRow key={r.guardianId} row={r} me={r.guardianId === meId} />
         ))}
@@ -137,7 +138,7 @@ function RankRow({ row: r, me }: { row: LeaderboardRow; me: boolean }) {
       </div>
 
       <span className="readout col-start-2 justify-self-start px-3 py-1 text-2xl leading-none sm:col-start-3 sm:row-start-1 sm:justify-self-end">
-        {r.points} PTS
+        <AnimatedNumber value={r.points} /> PTS
       </span>
 
       <div className="col-start-2 flex flex-col gap-2 sm:col-span-2">

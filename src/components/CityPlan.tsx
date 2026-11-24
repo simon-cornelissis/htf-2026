@@ -248,7 +248,7 @@ export function CityPlan({
             tabIndex={0}
             aria-pressed={isSelected}
             aria-label={`${SITE_META[type].label}: ${name}${open ? ', incident reported' : ''}`}
-            className="cursor-pointer outline-none [&:focus-visible_.plate]:stroke-[#ffb22e] [&:hover_.plate]:stroke-[#ffb22e]"
+            className="landmark cursor-pointer outline-none [&:focus-visible_.plate]:stroke-[#ffb22e] [&:hover_.plate]:stroke-[#ffb22e]"
             onClick={() => onSelect(type)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -259,6 +259,7 @@ export function CityPlan({
           >
             {(leaked || isSelected) && (
               <rect
+                key={isSelected ? 'sel' : 'leak'}
                 x={x - 42}
                 y={y - 42}
                 width="84"
@@ -267,7 +268,7 @@ export function CityPlan({
                 stroke={isSelected ? '#ffb22e' : '#ff3a22'}
                 strokeWidth="4"
                 strokeDasharray={isSelected ? '12 6' : undefined}
-                className={leaked && !isSelected ? 'animate-blink' : undefined}
+                className={leaked && !isSelected ? 'animate-blink' : 'fade-in'}
                 shapeRendering="crispEdges"
               />
             )}
@@ -275,9 +276,9 @@ export function CityPlan({
             <g transform={`translate(${x - 24} ${y - 24})`}>
               <SiteIcon type={type} />
             </g>
-            {open && <rect x={x + 20} y={y - 40} width="18" height="18" fill={leaked ? '#ff3a22' : '#ffb22e'} stroke="#140f07" strokeWidth="3" shapeRendering="crispEdges" />}
+            {open && <rect className="fade-in" x={x + 20} y={y - 40} width="18" height="18" fill={leaked ? '#ff3a22' : '#ffb22e'} stroke="#140f07" strokeWidth="3" shapeRendering="crispEdges" />}
             {planned && (
-              <g shapeRendering="crispEdges">
+              <g className="fade-in" shapeRendering="crispEdges">
                 <rect x={x - 40} y={y - 40} width="22" height="18" fill="#0b0703" stroke="#ffb22e" strokeWidth="2" />
                 <text x={x - 29} y={y - 26} textAnchor="middle" fill="#ffb22e" style={{ fontFamily: 'var(--font-mono)', fontSize: 16 }}>OP</text>
               </g>
@@ -287,6 +288,7 @@ export function CityPlan({
               y={y + 56}
               textAnchor="middle"
               fill={isSelected ? '#ffb22e' : '#f4e8bb'}
+              className="map-fill"
               stroke="#140f07"
               strokeWidth="6"
               paintOrder="stroke"
@@ -314,7 +316,7 @@ export function CityPlan({
         <IncidentLayer incidents={attacksHere} now={clock} position={position} metresPerUnit={PLAN_METRES_PER_UNIT} u={4} focus={fxFocus} layer="air" />
       )}
       {marked && markedSite && (
-        <IncidentTag incident={marked} at={plan.sites[markedSite.type]} />
+        <IncidentTag key={marked.key} incident={marked} at={plan.sites[markedSite.type]} />
       )}
     </svg>
   )
@@ -329,7 +331,7 @@ function IncidentTag({ incident, at: [x, y] }: { incident: Incident; at: [number
   const tx = left ? x - 50 - w : x + 50
   const ty = Math.max(8, Math.min(PLAN_H - 40, y - 90))
   return (
-    <g pointerEvents="none" aria-hidden="true" shapeRendering="crispEdges">
+    <g className="fade-in" pointerEvents="none" aria-hidden="true" shapeRendering="crispEdges">
       <rect x={tx} y={ty} width={w} height="32" fill="#0b0703" stroke="#ffb22e" strokeWidth="3" />
       <text x={tx + w / 2} y={ty + 23} textAnchor="middle" fill="#ffb22e" style={{ fontFamily: 'var(--font-mono)', fontSize: 22 }}>
         {line}

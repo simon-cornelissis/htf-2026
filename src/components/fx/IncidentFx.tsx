@@ -53,7 +53,7 @@ export function IncidentFx({
   const air = layer !== 'ground'
 
   return (
-    <g transform={`translate(${x} ${y})`} pointerEvents="none" aria-hidden="true">
+    <g transform={`translate(${x} ${y})`} pointerEvents="none" aria-hidden="true" className="fx-in">
       {title && air && <title>{title}</title>}
       {ground && (
         <g opacity={fade} shapeRendering="crispEdges">
@@ -64,6 +64,7 @@ export function IncidentFx({
       {/* Radius only for the last day (or when pointed at), so old circles don't pile up. */}
       {ground && showRadius && r > 0 && (smoky || highlight) && (
         <circle
+          className="fx fx-zone"
           r={r}
           fill={c.zone}
           fillOpacity={0.08 + 0.1 * phase.intensity}
@@ -84,7 +85,7 @@ export function IncidentFx({
       {air && fresh && <OneOff fx={fx} u={u} reach={reach} infinite={phase.fresh && !replay} />}
 
       {air && highlight && (
-        <g shapeRendering="crispEdges" fill="none" stroke="#ffb22e" strokeWidth={u} className="animate-blink">
+        <g shapeRendering="crispEdges" fill="none" stroke="#ffb22e" strokeWidth={u} className="fx fx-lock animate-blink">
           <Brackets s={Math.max(reach * 0.6, u * 10)} u={u} />
         </g>
       )}

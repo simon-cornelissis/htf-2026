@@ -55,13 +55,19 @@ Clients only see the tools your role may use. A connected client picks up a role
 | `list_incidents` | ✓ | ✓ | ✓ | Incident history of the last week with casualties |
 | `get_bomb` | ✓ | ✓ | ✓ | A device's wires (0 = leftmost), manual and strikes |
 | `get_leaderboard` | ✓ | ✓ | ✓ | Defenders ranked by points |
+| `list_persons` | ✓ | ✓ | ✓ | Persons of interest index (status, district, heat), filterable |
+| `get_person` | ✓ | ✓ | ✓ | One case file (by id `PI-03` or alias); classified entries stay redacted below commander |
+| `get_exposure` | ✓ | ✓ | ✓ | Public trust; commanders get the cover-up integrity reading |
 | `report_echo` | | ✓ | ✓ | Open a new glitch, or add an echo to an existing one |
 | `cut_wire` | | ✓ | ✓ | Cut a wire on an armed device (defuse!) |
 | `set_glitch_status` | | | ✓ | LEAKED → ASSESSING → CONTAINING → FIXED |
 | `list_operation_types` | | | ✓ | Operation types with their mood effects, harm and site amplifiers |
-| `plan_operation` | | | ✓ | Stage a false flag at a landmark, now or up to 24 h ahead |
+| `plan_operation` | | | ✓ | Stage a false flag at a landmark, now or up to 24 h ahead, optionally pinned on a person (`pinnedOn`) |
 | `cancel_operation` | | | ✓ | Call off a planned operation before it goes off |
 | `list_operations` | | | ✓ | Operations log across all districts |
+| `act_on_person` | | | ✓ | Warrant, detain or erase a person of interest |
+| `add_case_note` | | | ✓ | Add a (optionally classified) note to a case file |
+| `attribute_glitch` | | | ✓ | Pin a glitch on a person of interest |
 
 Role-specific data follows the app's rules too: defenders don't see which glitches were staged, and they see operations only as anonymous "rumours".
 
@@ -98,10 +104,11 @@ Sites can be given as an id (`rustmarket:square`), a landmark name (`Barter Ring
 | --- | --- |
 | `src/routes/_authed/mcp.tsx` | `/mcp`: the MCP access page in a browser, and the MCP endpoint (`server.handlers.POST`) for clients |
 | `src/mcp/http.ts` | Origin check, bearer token auth, stateless `WebStandardStreamableHTTPServerTransport` |
-| `src/mcp/server.ts` | `McpServer` with tools, resource and prompts; each tool wraps an existing server function |
+| `src/mcp/tools.ts` | The shared tool registry (name, zod schema, role, effect, approval summary, handler), used by this server **and** by CUSTODIAN, the in-app chat ([chat.md](chat.md)) |
+| `src/mcp/server.ts` | `McpServer`: registers the registry's tools for the caller's role, plus the resource and prompts |
 | `src/mcp/tokens.ts` | Token generation, hashing and lookup |
 | `src/mcp/world-lookup.ts` | Resolves district and site names an LLM uses into ids |
-| `src/mcp/capabilities.ts` | Tool names and plain-word capabilities per role (shared with the page) |
+| `src/mcp/capabilities.ts` | Tool names and plain-word capabilities per role (shared with the page; a unit test keeps it in sync with the registry) |
 | `src/lib/mcp.functions.ts` | Server functions for the page: list, create and revoke tokens |
 
 A quick check with the official inspector: `npx @modelcontextprotocol/inspector`, transport "Streamable HTTP", URL `http://localhost:3000/mcp`, header `Authorization: Bearer <token>`. It runs on localhost, which the origin check allows.

@@ -12,15 +12,22 @@ import { useHotkeys } from '#/lib/useHotkeys.ts'
 import { getBomb, type BombState } from '#/lib/bombs.functions.ts'
 import { useNow } from '#/lib/useNow.ts'
 import { canCommand } from '#/lib/glitch.ts'
+import { attributeGlitch, getGlitchCase, getPersonOptions, type GlitchCase } from '#/lib/persons.functions.ts'
+import { PERSON_STATUS_META } from '#/lib/persons.ts'
+import { InfoTip, Tip } from '#/components/ui/Tooltip.tsx'
 
 export const Route = createFileRoute('/_authed/glitches/$glitchId')({
   validateSearch: (search: Record<string, unknown>): { fresh?: boolean } => ({
     fresh: search.fresh === true || search.fresh === 'true' ? true : undefined,
   }),
   loader: async ({ params }) => {
-    const [glitch, bomb] = await Promise.all([getGlitch({ data: params.glitchId }), getBomb({ data: params.glitchId })])
+    const [glitch, bomb, caseInfo] = await Promise.all([
+      getGlitch({ data: params.glitchId }),
+      getBomb({ data: params.glitchId }),
+      getGlitchCase({ data: params.glitchId }),
+    ])
     if (!glitch) throw notFound()
-    return { ...glitch, bomb }
+    return { ...glitch, bomb, caseInfo }
   },
   head: ({ params }) => ({ meta: [{ title: `${params.glitchId} · Guardians of the Grid` }] }),
   notFoundComponent: () => (
@@ -114,6 +121,7 @@ function GlitchPage() {
               ◆ STAGED BY {glitch.stagedBy}. DEFENDERS SEE THIS AS A REAL GLITCH.
             </p>
           )}
+          {glitch.caseInfo && <CaseStrips info={glitch.caseInfo} />}
         </div>
         <figure>
           <Link to="/districts/$districtId" params={{ districtId: glitch.district }} search={site ? { site: site.type } : {}} className="inset block bg-edge p-1 hover:outline hover:outline-2 hover:outline-amber" aria-label={`Zoom into ${district.name}`}>
@@ -228,6 +236,8 @@ function GlitchPage() {
             </button>
           </div>
 
+          {isCommander && glitch.caseInfo && !glitch.caseInfo.suspect && <AttributePanel glitchId={glitch.glitchId} />}
+
           {isCommander && (
             <div className="metal overflow-hidden">
               <div className="hazard h-4" aria-hidden="true" />
@@ -304,5 +314,88 @@ function BombPanel({ bomb }: { bomb: BombState }) {
         </Link>
       </div>
     </section>
+  )
+}
+/** Who the agency blames, and (commanders only) what the residue reading really says. Same strip for every glitch. */
+function CaseStrips({ info }: { info: GlitchCase }) {
+  const { suspect, residue } = info
+  return (
+    <div className="flex flex-col gap-2 text-xl leading-tight">
+      {suspect && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-2 border-[#ff7a5c] px-3 py-1 text-[#ff9a7e]">
+          <span>SUSPECT: {suspect.alias ?? '████████'}</span>
+          <span className="text-lg text-phos-dim uppercase">{PERSON_STATUS_META[suspect.status].label}</span>
+          {suspect.alias && (
+            <Link to="/persons/$personId" params={{ personId: suspect.personId }} className="ml-auto text-lg text-amber underline-offset-2 hover:underline">
+              Open case file ▸
+            </Link>
+          )}
+        </p>
+      )}
+      {residue.cleared ? (
+        <p className={`border-2 px-3 py-1 ${residue.kind === 'staged' ? 'border-amber/60 text-amber' : 'border-amber text-[#ffd27a]'}`}>
+          ◆ CLASSIFIED · {residue.line}
+        </p>
+      ) : (
+        <p className="flex items-center gap-2 text-phos-dim">
+          RESIDUE SIGNATURE:
+          <Tip text="Classified. Commanders only.">
+            <span tabIndex={0} className="cursor-help bg-[#0b0703] text-[#0b0703] select-none" aria-label="Classified">████████████</span>
+          </Tip>
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Commanders: blame this glitch on a person of interest after the fact. */
+function AttributePanel({ glitchId }: { glitchId: string }) {
+  const router = useRouter()
+  const [people, setPeople] = useState<Awaited<ReturnType<typeof getPersonOptions>> | null>(null)
+  const [choice, setChoice] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getPersonOptions().then(setPeople, () => setPeople([]))
+  }, [])
+
+  async function attribute() {
+    if (!choice) return
+    setError(null)
+    try {
+      await attributeGlitch({ data: { glitchId, personId: choice } })
+      await router.invalidate()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'That didn’t go through. Try again.')
+    }
+  }
+
+  return (
+    <div className="metal rivets p-5">
+      <h2 className="stamp flex items-center gap-2 text-lg font-bold">
+        Attribute
+        <InfoTip label="About attribution" text="Name a person of interest as the suspect. Witnesses place them at the scene, their threat level rises and the public hears their name. Blaming someone still free lets them publish a denial." />
+      </h2>
+      <p className="mt-1 mb-3 leading-tight text-[#d8d3a6]">Nobody is blamed for this glitch yet.</p>
+      <label className="block">
+        <span className="label mb-2 block">Suspect</span>
+        <select
+          value={choice}
+          onChange={(e) => { setChoice(e.target.value); setError(null) }}
+          className="inset w-full bg-[#0b0703] px-2 py-2 text-xl text-phos focus:outline focus:outline-2 focus:outline-amber"
+        >
+          <option value="">{people === null ? 'Loading files…' : 'Pick a person of interest'}</option>
+          {people?.map((p) => (
+            <option key={p.personId} value={p.personId}>
+              {p.alias} · {PERSON_STATUS_META[p.status].label} · threat {p.heat}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div aria-live="polite" className="min-h-6 text-lg text-[#ff8a6a]">{error && `✕ ${error}`}</div>
+      <HoldButton label="Hold to name the suspect" onConfirm={attribute} className="btn w-full py-3 text-sm">
+        {choice ? 'Hold to name the suspect' : 'Pick a suspect first'}
+      </HoldButton>
+    </div>
   )
 }

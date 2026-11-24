@@ -1,3 +1,4 @@
+import { AnimatedNumber } from '#/components/ui/AnimatedNumber.tsx'
 import { InfoTip } from '#/components/ui/Tooltip.tsx'
 import type { Mood } from '#/lib/districts.ts'
 
@@ -56,13 +57,14 @@ export function MoodMeters({ mood, baseline, size = 'md' }: { mood: Mood; baseli
               {Array.from({ length: segments }, (_, i) => (
                 <span
                   key={i}
-                  className="h-3 flex-1"
-                  style={{ background: i < lit ? color : '#1c1a12', boxShadow: i < lit ? `0 0 5px ${color}` : undefined }}
+                  className="meter-seg h-3 flex-1"
+                  // Segments light up / go dark one after another, like a VU meter.
+                  style={{ background: i < lit ? color : '#1c1a12', boxShadow: i < lit ? `0 0 5px ${color}` : '0 0 0 transparent', transitionDelay: `${i * 14}ms` }}
                 />
               ))}
             </dd>
             <dd className="readout flex min-w-[4.5rem] items-baseline justify-end gap-1.5 px-2 text-2xl leading-none">
-              {value}
+              <AnimatedNumber value={value} />
               {baseline && delta !== 0 && (
                 <span className={`text-base ${worse ? 'text-[#ff6a4e]' : 'text-[#9dff86]'}`} title="Change from this district's normal">
                   {delta > 0 ? '▲' : '▼'}{Math.abs(delta)}

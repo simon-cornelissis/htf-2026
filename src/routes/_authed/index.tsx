@@ -11,6 +11,7 @@ import type { DistrictMood } from '#/lib/operations.ts'
 import { useTransmit } from '#/components/layout/Shell.tsx'
 import { RelativeTime } from '#/components/ui/RelativeTime.tsx'
 import { StatusStamp } from '#/components/ui/StatusStamp.tsx'
+import { AnimatedNumber } from '#/components/ui/AnimatedNumber.tsx'
 import { DISTRICT_IDS, DISTRICTS, isDistrictId, siteName, type DistrictId } from '#/lib/districts.ts'
 import { GLITCH_STATUSES, STATUS_META, type GlitchStatus } from '#/lib/glitch.ts'
 import { useHotkeys } from '#/lib/useHotkeys.ts'
@@ -137,6 +138,7 @@ function BoardPage() {
           </div>
           <MapLegend overlay={overlay} />
           <DistrictIntel district={hovered ?? undefined} stats={stats} moods={moods} />
+          <div className="enter-rows">
           <IncidentHistory
             incidents={fx.incidents}
             now={now}
@@ -147,6 +149,7 @@ function BoardPage() {
             onPin={fx.setPinned}
             onReplay={fx.replay}
           />
+          </div>
         </div>
       </section>
 
@@ -233,7 +236,7 @@ function BoardPage() {
               <p className="text-phos-dim">Clear the search, pick another status or another district.</p>
             </div>
           ) : (
-            <ol ref={listRef} className="mt-2 flex flex-col gap-1" aria-label="Glitches">
+            <ol ref={listRef} className="enter-rows mt-2 flex flex-col gap-1" aria-label="Glitches">
               {visible.map((g, i) => (
                 <li key={g.glitchId}>
                   <Link
@@ -241,7 +244,7 @@ function BoardPage() {
                     to="/glitches/$glitchId"
                     params={{ glitchId: g.glitchId }}
                     onFocus={() => setCursor(i)}
-                    className={`grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1 px-2 py-2 leading-tight hover:bg-phos/10 focus:bg-phos/15 focus:outline-none sm:grid-cols-[auto_1fr_auto] ${cursor === i ? 'bg-phos/10' : ''}`}
+                    className={`row-hover grid grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1 px-2 py-2 leading-tight hover:bg-phos/10 focus:bg-phos/15 focus:outline-none sm:grid-cols-[auto_1fr_auto] ${cursor === i ? 'bg-phos/10' : ''}`}
                   >
                     <span aria-hidden="true" className={`pt-0.5 text-xl ${cursor === i ? 'text-phos' : 'text-phos-dim'}`}>{cursor === i ? '▶' : '•'}</span>
                     <span className="min-w-0">
@@ -281,7 +284,7 @@ function DistrictIntel({
   return (
     <div className="crt mt-4 min-h-[8rem] rounded-[10px] px-4 py-3 text-xl leading-tight" aria-live="polite">
       {d && s && m ? (
-        <>
+        <div key={district} className="swap-in">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <span className="text-2xl text-phos uppercase">{d.name}</span>
             <span className="text-amber">CLICK TO ENTER ▸</span>
@@ -293,9 +296,9 @@ function DistrictIntel({
           <div className="text-phos">
             JOY {m.happiness} · <span className={m.fear >= 40 ? 'text-[#ff7a5c]' : ''}>FEAR {m.fear}</span> · ANXIETY {m.anxiety}
           </div>
-        </>
+        </div>
       ) : (
-        <div className="text-phos-dim">
+        <div className="swap-in text-phos-dim">
           &gt; HOVER A DISTRICT FOR INTEL.<br />&gt; CLICK IT TO ZOOM IN. CLICK A BEACON TO OPEN ITS GLITCH.
         </div>
       )}
@@ -319,7 +322,7 @@ function RailButton({
       >
         <span className="flex w-full items-center justify-between px-1">
           <span data-on={lamp} className={`lamp size-2.5 ${blink ? 'animate-blink' : ''}`} aria-hidden="true" />
-          <span className="readout px-1.5 font-mono text-2xl leading-none normal-case">{String(count).padStart(2, '0')}</span>
+          <span className="readout px-1.5 font-mono text-2xl leading-none normal-case"><AnimatedNumber value={count} pad={2} /></span>
         </span>
         <span className="w-full truncate text-center font-mono text-xl leading-none">{label}</span>
       </button>

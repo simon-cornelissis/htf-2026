@@ -15,6 +15,9 @@ export type CityPlan = {
   outline: Pt[]
   /** SVG transform that maps world-map coordinates onto the plan. */
   worldTransform: string
+  /** The same mapping as numbers: plan = world * scale + offset. */
+  scale: number
+  offset: Pt
   sites: Record<SiteType, Pt>
   roofs: { x: number; y: number; w: number; h: number; tone: number }[]
   streetsX: number[]
@@ -130,6 +133,8 @@ export function cityPlan(id: DistrictId): CityPlan {
   const plan: CityPlan = {
     outline,
     worldTransform: `translate(${ox} ${oy}) scale(${scale})`,
+    scale,
+    offset: [ox, oy],
     sites,
     roofs,
     streetsX,
@@ -138,4 +143,16 @@ export function cityPlan(id: DistrictId): CityPlan {
   }
   cache.set(id, plan)
   return plan
+}
+
+/** Ground distance per plan unit: a city plan is about 1.5 km across. */
+export const PLAN_METRES_PER_UNIT = 1.5
+/** Ground distance per world-map unit (the world map squeezes things, so radii stay readable). */
+export const WORLD_METRES_PER_UNIT = 8
+
+/** Where a landmark sits on the world map. */
+export function siteOnWorld(district: DistrictId, type: SiteType): Pt {
+  const plan = cityPlan(district)
+  const [x, y] = plan.sites[type]
+  return [(x - plan.offset[0]) / plan.scale, (y - plan.offset[1]) / plan.scale]
 }

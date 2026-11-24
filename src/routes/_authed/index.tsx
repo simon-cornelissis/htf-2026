@@ -3,6 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { DistrictMap, districtStats } from '#/components/DistrictMap.tsx'
 import { InfoTip, Tip } from '#/components/ui/Tooltip.tsx'
 import { getMoods } from '#/lib/operations.functions.ts'
+import { getIncidents } from '#/lib/incidents.functions.ts'
+import { IncidentHistory } from '#/components/fx/IncidentHistory.tsx'
+import { useIncidents } from '#/components/fx/useIncidents.ts'
+import { useNow } from '#/lib/useNow.ts'
 import type { DistrictMood } from '#/lib/operations.ts'
 import { useTransmit } from '#/components/layout/Shell.tsx'
 import { RelativeTime } from '#/components/ui/RelativeTime.tsx'
@@ -22,7 +26,10 @@ export const Route = createFileRoute('/_authed/')({
     district: isDistrictId(search.district) ? search.district : undefined,
     view: search.view === 'mood' ? 'mood' : undefined,
   }),
-  loader: () => getMoods(),
+  loader: async () => {
+    const [moods, incidents] = await Promise.all([getMoods(), getIncidents({ data: {} })])
+    return { moods, incidents }
+  },
   component: BoardPage,
 })
 
@@ -37,7 +44,10 @@ const RAIL_LAMP: Record<GlitchStatus, 'red' | 'amber' | 'green' | undefined> = {
 
 function BoardPage() {
   const glitches = authed.useLoaderData()
-  const moods = Route.useLoaderData()
+  const { moods, incidents: loadedIncidents } = Route.useLoaderData()
+  const fx = useIncidents(loadedIncidents)
+  // Effects fade over hours: a slow clock is enough.
+  const now = useNow(30_000)
   const { q = '', status, district, view } = Route.useSearch()
   const navigate = useNavigate({ from: '/' })
   const overlay = view === 'mood' ? 'mood' : 'glitches'
@@ -120,10 +130,23 @@ function BoardPage() {
               onZoom={zoomInto}
               overlay={overlay}
               moods={moods}
+              incidents={fx.incidents}
+              fxFocus={fx.focus}
+              now={now}
             />
           </div>
           <MapLegend overlay={overlay} />
           <DistrictIntel district={hovered ?? undefined} stats={stats} moods={moods} />
+          <IncidentHistory
+            incidents={fx.incidents}
+            now={now}
+            showDistrict
+            hovered={fx.hovered}
+            pinned={fx.pinned}
+            onHover={fx.setHovered}
+            onPin={fx.setPinned}
+            onReplay={fx.replay}
+          />
         </div>
       </section>
 
@@ -330,6 +353,12 @@ function MapLegend({ overlay }: { overlay: 'glitches' | 'mood' }) {
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="inline-block size-3.5 border-2 border-edge bg-[#ff3a22]" />
         Glitch beacon · click to open
+      </li>
+      <li className="flex items-center gap-2">
+        <span aria-hidden="true" className="inline-block size-3.5 border-2 border-edge bg-[#24170c]" />
+        <Tip text="Smoke, fire, fog and scorch marks show where something happened. They fade over two days. See the incident history below.">
+          <span tabIndex={0}>Incident mark</span>
+        </Tip>
       </li>
     </ul>
   )

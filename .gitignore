@@ -14,3 +14,6 @@ todos.json
 
 # SQLite
 local.db*
+
+# MCP client config with a personal token
+.mcp.json

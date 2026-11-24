@@ -3,6 +3,9 @@ import { useId, useMemo } from 'react'
 import { DISTRICT_IDS, DISTRICTS, type DistrictId } from '#/lib/districts.ts'
 import type { Glitch, GlitchStatus } from '#/lib/glitch.ts'
 import type { DistrictMood } from '#/lib/operations.ts'
+import type { Incident } from '#/lib/incidents.ts'
+import { siteOnWorld, WORLD_METRES_PER_UNIT } from '#/lib/cityplan.ts'
+import { IncidentLayer, type FxFocus } from '#/components/fx/IncidentLayer.tsx'
 
 export type DistrictStats = { open: number; leaked: number; total: number }
 
@@ -51,6 +54,9 @@ export function DistrictMap({
   overlay = 'glitches',
   moods,
   onZoom,
+  incidents,
+  fxFocus,
+  now,
 }: {
   glitches: Glitch[]
   /** Pick mode (e.g. the transmit dialog): the district currently picked. */
@@ -66,6 +72,11 @@ export function DistrictMap({
   moods?: Record<DistrictId, DistrictMood>
   /** Zoom mode (world map): a click, Enter or Space on a district enters it. */
   onZoom?: (id: DistrictId) => void
+  /** Recent incidents, drawn at their landmarks with a fading effect. */
+  incidents?: Incident[]
+  fxFocus?: FxFocus
+  /** Clock for fading the effects. */
+  now?: number
 }) {
   const navigate = useNavigate()
   // Unique SVG ids: several maps can be on one page (board + dialog).
@@ -194,6 +205,18 @@ export function DistrictMap({
           </g>
         ))}
       </g>
+
+      {/* Incidents at their landmarks: blasts, smoke, fog... fading over two days */}
+      {incidents && incidents.length > 0 && (
+        <IncidentLayer
+          incidents={incidents}
+          now={now ?? Date.now()}
+          position={siteOnWorld}
+          metresPerUnit={WORLD_METRES_PER_UNIT}
+          u={2}
+          focus={fxFocus}
+        />
+      )}
 
       {/* Selection / highlight outline */}
       {pointAt && (

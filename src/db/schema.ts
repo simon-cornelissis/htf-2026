@@ -98,6 +98,42 @@ export const operations = sqliteTable('operations', {
   injured: integer('injured'),
   /** Metres, on the city plan scale. */
   blastRadius: integer('blast_radius'),
+  /** Person of interest the attack is pinned on (framed). */
+  pinnedOn: text('pinned_on').references(() => persons.personId),
+})
+
+/**
+ * People of interest: Desync members and sympathisers. The static profile
+ * (name, role, bio) lives in code (src/lib/persons.ts); this table holds the
+ * state the game changes.
+ */
+export const persons = sqliteTable('persons', {
+  personId: text('person_id').primaryKey(),
+  /** AT_LARGE | WANTED | DETAINED | ERASED */
+  status: text('status').notNull(),
+  /** 0–100: how hard the agency is hunting them. */
+  heat: integer('heat').notNull().default(0),
+  /** ISO 8601 */
+  updatedAt: text('updated_at').notNull(),
+})
+
+/** Entries in a person's case file: intercepts, sightings, attributions, agency notes. */
+export const caseEntries = sqliteTable('case_entries', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  personId: text('person_id')
+    .notNull()
+    .references(() => persons.personId, { onDelete: 'cascade' }),
+  /** INTERCEPT | SIGHTING | ATTRIBUTION | NOTE | ACTION | LEAK */
+  kind: text('kind').notNull(),
+  /** In-world text. CLASSIFIED entries are only shown to commanders/admins. */
+  body: text('body').notNull(),
+  classified: integer('classified', { mode: 'boolean' }).notNull().default(false),
+  /** Optional links. */
+  glitchId: text('glitch_id').references(() => glitches.glitchId, { onDelete: 'set null' }),
+  operationId: text('operation_id'),
+  authorId: text('author_id').references(() => guardians.guardianId),
+  /** ISO 8601 */
+  timestamp: text('timestamp').notNull(),
 })
 
 /** Append-only log of every AI (and policy) decision. */

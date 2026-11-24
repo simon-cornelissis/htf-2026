@@ -1,4 +1,4 @@
-import { DISTRICT_IDS, DISTRICTS, parseSiteId, type DistrictId, type Mood, type SiteType } from './districts.ts'
+import { DISTRICT_IDS, DISTRICTS, parseSiteId, siteName, type DistrictId, type Mood, type SiteType } from './districts.ts'
 import type { GlitchStatus } from './glitch.ts'
 import type { BombOutcome } from './bomb.ts'
 
@@ -7,7 +7,21 @@ import type { BombOutcome } from './bomb.ts'
  * When one goes off it becomes an ordinary-looking glitch for defenders,
  * and the district's residents get scared.
  */
-export const OPERATION_TYPES = ['blackout', 'sighting', 'supply', 'evacuation', 'echoes', 'bomb'] as const
+export const OPERATION_TYPES = [
+  'blackout',
+  'sighting',
+  'supply',
+  'evacuation',
+  'echoes',
+  'bomb',
+  'poison',
+  'arson',
+  'collapse',
+  'gas',
+  'riot',
+  'surge',
+  'vanish',
+] as const
 
 export type OperationType = (typeof OPERATION_TYPES)[number]
 
@@ -55,6 +69,146 @@ export const OPERATION_META: Record<
     effect: { happiness: -10, fear: 24, anxiety: 26 },
     cover: (site) => `Unattended device ticking at ${site}, area cordoned off`,
   },
+  poison: {
+    name: 'Tainted wells',
+    summary: 'Turn the water bad. People get sick and stop trusting the taps.',
+    effect: { happiness: -18, fear: 20, anxiety: 30 },
+    cover: (site) => `Water near ${site} runs grey and tastes of rust, people falling ill`,
+  },
+  arson: {
+    name: 'Set a fire',
+    summary: 'A blaze nobody can explain. The smoke hangs over the district for hours.',
+    effect: { happiness: -14, fear: 26, anxiety: 18 },
+    cover: (site) => `Fire broke out at ${site}, flames burned a colour nobody had seen before`,
+  },
+  collapse: {
+    name: 'Structural collapse',
+    summary: 'Weaken the old beams until part of the building comes down.',
+    effect: { happiness: -16, fear: 30, anxiety: 22 },
+    cover: (site) => `Part of ${site} folded in on itself, the rubble looks years old`,
+  },
+  gas: {
+    name: 'Drifting fog',
+    summary: 'Release a choking green fog. The wind carries it down the streets.',
+    effect: { happiness: -12, fear: 32, anxiety: 26 },
+    cover: (site) => `Green fog rolled out of ${site} and drifted with the wind, people coughing`,
+  },
+  riot: {
+    name: 'Incited riot',
+    summary: 'Plant agitators in the crowd and let anger do the rest.',
+    effect: { happiness: -20, fear: 22, anxiety: 28 },
+    cover: (site) => `Crowd at ${site} turned violent, witnesses say nobody knows who started it`,
+  },
+  surge: {
+    name: 'Power surge',
+    summary: 'Overload the grid. Lamps burst, wiring sparks, machines die at once.',
+    effect: { happiness: -10, fear: 14, anxiety: 26 },
+    cover: (site) => `Every lamp at ${site} burst at once, blue sparks crawled along the wires`,
+  },
+  vanish: {
+    name: 'Disappearances',
+    summary: 'People stop coming home. Everyone will say the Desync took them.',
+    effect: { happiness: -14, fear: 34, anxiety: 24 },
+    cover: (site) => `Residents last seen near ${site} never came home, their shadows still on the wall`,
+  },
+}
+
+/** How an incident is drawn on the map. */
+export const FX_KINDS = ['explosion', 'fire', 'gas', 'poison', 'collapse', 'crowd', 'flicker', 'surge', 'siren', 'echo', 'vanish', 'calm'] as const
+export type FxKind = (typeof FX_KINDS)[number]
+
+/**
+ * Physical profile of each attack: what the public calls it, how it looks on
+ * the map, and how much harm it does at a typical district (5,000 residents)
+ * and a neutral site. `dead` / `injured` are [min, max]; `radius` is metres.
+ */
+export type ImpactProfile = {
+  /** Public name. Never says it was staged. */
+  label: string
+  fx: FxKind
+  dead: [number, number]
+  injured: [number, number]
+  radius: [number, number]
+  /** For disappearances the count is people missing, not dead. */
+  countWord: 'dead' | 'missing'
+}
+
+export const IMPACT: Record<OperationType, ImpactProfile> = {
+  blackout: { label: 'Blackout', fx: 'flicker', dead: [0, 1], injured: [1, 6], radius: [180, 300], countWord: 'dead' },
+  sighting: { label: 'Sighting', fx: 'echo', dead: [0, 0], injured: [0, 2], radius: [40, 80], countWord: 'dead' },
+  supply: { label: 'Shortage', fx: 'crowd', dead: [0, 0], injured: [0, 5], radius: [60, 110], countWord: 'dead' },
+  evacuation: { label: 'Siren alarm', fx: 'siren', dead: [0, 2], injured: [4, 16], radius: [200, 320], countWord: 'dead' },
+  echoes: { label: 'Echoes', fx: 'echo', dead: [0, 0], injured: [0, 1], radius: [50, 90], countWord: 'dead' },
+  // Applies when the device detonates. Defused: no harm at all.
+  bomb: { label: 'Explosion', fx: 'explosion', dead: [6, 20], injured: [25, 70], radius: [100, 180], countWord: 'dead' },
+  poison: { label: 'Poisoned water', fx: 'poison', dead: [1, 6], injured: [20, 60], radius: [180, 300], countWord: 'dead' },
+  arson: { label: 'Fire', fx: 'fire', dead: [1, 5], injured: [6, 22], radius: [60, 120], countWord: 'dead' },
+  collapse: { label: 'Collapse', fx: 'collapse', dead: [3, 12], injured: [10, 32], radius: [60, 120], countWord: 'dead' },
+  gas: { label: 'Toxic fog', fx: 'gas', dead: [2, 8], injured: [15, 45], radius: [140, 260], countWord: 'dead' },
+  riot: { label: 'Riot', fx: 'crowd', dead: [0, 3], injured: [12, 40], radius: [100, 180], countWord: 'dead' },
+  surge: { label: 'Power surge', fx: 'surge', dead: [0, 2], injured: [3, 12], radius: [200, 340], countWord: 'dead' },
+  vanish: { label: 'Disappearances', fx: 'vanish', dead: [2, 9], injured: [0, 0], radius: [80, 160], countWord: 'missing' },
+}
+
+/** A typical district, the one the IMPACT numbers are written for. */
+const REFERENCE_POPULATION = 5000
+
+function hash(text: string) {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619)
+  return h >>> 0
+}
+
+function seeded(seed: number) {
+  return () => {
+    seed |= 0
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+export type Impact = { casualties: number; injured: number; blastRadius: number }
+
+/**
+ * Harm done by one operation. Seeded by the operation id, so the same
+ * operation always gives the same numbers. Bigger districts and crowded
+ * sites mean more people in the way; the radius only depends on the site.
+ */
+export function computeImpact(operationId: string, type: OperationType, siteIdValue: string): Impact {
+  const p = IMPACT[type]
+  const crowd = crowdFactor(siteIdValue)
+  const rand = seeded(hash(`${operationId}:${type}`))
+  const pick = ([lo, hi]: [number, number]) => lo + rand() * (hi - lo)
+  return {
+    casualties: Math.round(pick(p.dead) * crowd),
+    injured: Math.round(pick(p.injured) * crowd),
+    blastRadius: Math.round(pick(p.radius) / 10) * 10,
+  }
+}
+
+/** How many people are in the way at a site, relative to the reference district. */
+function crowdFactor(siteIdValue: string) {
+  const site = parseSiteId(siteIdValue)
+  const population = site ? DISTRICTS[site.district].population : REFERENCE_POPULATION
+  const factor = site ? SITE_IMPACT[site.type].factor : 1
+  // Square root: a district twice the size doesn't put twice as many people on one corner.
+  return Math.sqrt(population / REFERENCE_POPULATION) * factor
+}
+
+/** Expected range of harm at a site, for the planner. */
+export function estimateImpact(type: OperationType, siteIdValue: string) {
+  const p = IMPACT[type]
+  const crowd = crowdFactor(siteIdValue)
+  const scale = ([lo, hi]: [number, number]): [number, number] => [Math.round(lo * crowd), Math.round(hi * crowd)]
+  return { dead: scale(p.dead), injured: scale(p.injured), radius: p.radius, countWord: p.countWord }
+}
+
+/** Extra fear from people getting hurt. Grows quickly at first, then levels off. */
+export function harmEffect(casualties: number, injured: number): Mood {
+  const fear = Math.min(18, 4 * Math.log2(1 + casualties) + 1.5 * Math.log2(1 + injured))
+  return { happiness: -fear * 0.6, fear, anxiety: fear * 0.5 }
 }
 
 /** What happens to residents once a planted device is resolved. */
@@ -114,7 +268,27 @@ export type ExecutedOperation = {
   /** Bombs only: set once defused or detonated. */
   outcome?: BombOutcome | null
   resolvedAt?: string | null
+  /** Stored once it goes off; recomputed from the seed when missing. */
+  casualties?: number | null
+  injured?: number | null
 }
+
+/** Harm of an executed operation: stored numbers, or the seeded ones for older rows. */
+export function harmOf(op: ExecutedOperation): { casualties: number; injured: number } {
+  if (op.type === 'bomb' && op.outcome !== 'DETONATED') return { casualties: 0, injured: 0 }
+  if (op.casualties != null && op.injured != null) return { casualties: op.casualties, injured: op.injured }
+  const i = computeImpact(op.operationId, op.type, op.siteId)
+  return { casualties: i.casualties, injured: i.injured }
+}
+
+const addMood = (a: Mood, b: Mood): Mood => ({
+  happiness: a.happiness + b.happiness,
+  fear: a.fear + b.fear,
+  anxiety: a.anxiety + b.anxiety,
+})
+
+/** Attacks residents see with their own eyes, so they're named rather than rumoured. */
+const PUBLIC_INCIDENTS = new Set<OperationType>(['poison', 'arson', 'collapse', 'gas', 'riot', 'surge', 'vanish'])
 
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)))
 
@@ -154,7 +328,12 @@ export function computeMoods(
     if (k <= 0 || !out[op.district]) continue
     const site = parseSiteId(op.siteId)
     const factor = site ? SITE_IMPACT[site.type].factor : 1
-    const e = resolved ? BOMB_OUTCOME_EFFECT[op.outcome!] : OPERATION_META[op.type].effect
+    const harm = harmOf(op)
+    // People getting hurt or going missing scares everyone, on top of the operation itself.
+    // The body count already accounts for the site, so it isn't amplified again.
+    const base = resolved ? BOMB_OUTCOME_EFFECT[op.outcome!] : OPERATION_META[op.type].effect
+    const hurt = harmEffect(harm.casualties, harm.injured)
+    const e = addMood(base, { happiness: hurt.happiness / factor, fear: hurt.fear / factor, anxiety: hurt.anxiety / factor })
     if (op.type === 'bomb') {
       // A bomb is public news: everyone sees it, only commanders see who planted it.
       const what = op.outcome === 'DETONATED' ? 'Device detonated' : op.outcome === 'DEFUSED' ? 'Device defused' : 'Armed device'
@@ -172,6 +351,12 @@ export function computeMoods(
     }
     if (revealOperations) {
       add(op.district, { label: `${op.operationId} ${OPERATION_META[op.type].name.toLowerCase()}`, kind: 'operation', effect })
+      continue
+    }
+    // Physical incidents (fires, fog, collapses...) are public news under their public name.
+    if (PUBLIC_INCIDENTS.has(op.type)) {
+      const where = siteName(op.siteId)
+      add(op.district, { label: where ? `${IMPACT[op.type].label} at ${where}` : IMPACT[op.type].label, kind: 'glitch', effect })
       continue
     }
     // Defenders only see one combined, unexplained "rumours" driver per district.

@@ -1,7 +1,8 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { siteName } from '#/lib/districts.ts'
-import { OPERATION_META } from '#/lib/operations.ts'
+import { harmLine } from '#/lib/incidents.ts'
+import { IMPACT, OPERATION_META } from '#/lib/operations.ts'
 import { cancelOperation, type Operation } from '#/lib/operations.functions.ts'
 import { countdown, useNow } from '#/lib/useNow.ts'
 
@@ -50,6 +51,12 @@ export function OperationsLog({ operations }: { operations: Operation[] }) {
             <span className="font-mono text-xl text-stamp">{op.operationId}</span>
             <span className="min-w-0 text-xl leading-tight text-ink">
               {OPERATION_META[op.type].name} <span className="text-ink-dim">@ {siteName(op.siteId)}</span>
+              {op.status === 'EXECUTED' && op.casualties != null && (
+                <span className={`block text-lg ${op.casualties > 0 ? 'text-[#ff9a7e]' : 'text-ink-dim'}`}>
+                  {harmLine({ casualties: op.casualties, injured: op.injured ?? 0, countWord: IMPACT[op.type].countWord })}
+                  {op.blastRadius ? ` · ${op.blastRadius} m` : ''}
+                </span>
+              )}
             </span>
             <span className="ml-auto flex items-center gap-2">
               {op.status === 'PLANNED' && (

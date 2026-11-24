@@ -26,6 +26,10 @@ export type Operation = {
   status: OperationStatus
   glitchId: string | null
   plannerCodename: string
+  /** Set once it went off (bombs: once detonated or defused). */
+  casualties: number | null
+  injured: number | null
+  blastRadius: number | null
 }
 
 /** Mood of every district. Defenders see the same numbers, but not what caused them. */
@@ -61,6 +65,9 @@ export const getDistrict = createServerFn({ method: 'GET' })
               status: operations.status,
               glitchId: operations.glitchId,
               plannerCodename: guardians.codename,
+              casualties: operations.casualties,
+              injured: operations.injured,
+              blastRadius: operations.blastRadius,
             })
             .from(operations)
             .innerJoin(guardians, eq(operations.plannerId, guardians.guardianId))

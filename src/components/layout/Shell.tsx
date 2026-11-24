@@ -105,6 +105,11 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link to="/leaderboard" className="btn px-4 py-2 text-sm" activeProps={{ 'aria-current': 'page', className: 'btn btn-primary px-4 py-2 text-sm' }}>
               Leaderboard
             </Link>
+            <Tip text="Connect Claude (Claude Code or Claude Desktop) to Achrona and let it act for you, with your role's permissions.">
+              <Link to="/mcp" className="btn px-4 py-2 text-sm" activeProps={{ 'aria-current': 'page', className: 'btn btn-primary px-4 py-2 text-sm' }}>
+                MCP access
+              </Link>
+            </Tip>
           </div>
         </nav>
 

@@ -7,6 +7,8 @@ import { DISTRICTS, SITE_META, SITE_TYPES, siteId, type DistrictId, type Mood, t
 import {
   BOMB_OUTCOME_EFFECT,
   EFFECT_FADE_HOURS,
+  estimateImpact,
+  harmEffect,
   OPERATION_META,
   OPERATION_TYPES,
   SITE_IMPACT,
@@ -182,6 +184,7 @@ export function PlanOperationWizard({
                               </span>
                             </span>
                             <span className="font-mono text-lg leading-tight text-ink-dim">{m.summary}</span>
+                            {site && <HarmEstimate type={t} siteIdValue={siteId(district, site)} />}
                             {isBomb && (
                               <span className="mt-1 block border-l-4 border-amber pl-2 font-mono text-lg leading-tight text-amber">
                                 When it goes off it arms a {Math.round(FUSE_SECONDS / 60)}-minute fuse and every guardian gets an alert.
@@ -240,7 +243,7 @@ export function PlanOperationWizard({
                     </div>
                   </label>
 
-                  <Impact mood={mood} type={type} factor={factor} />
+                  <Impact mood={mood} type={type} factor={factor} siteIdValue={siteId(district, site)} />
                 </Step>
               )}
             </div>
@@ -320,8 +323,30 @@ function Step({ title, hint, children }: { title: string; hint?: string; childre
   )
 }
 
-function Impact({ mood, type, factor }: { mood: Mood; type: OperationType; factor: number }) {
-  const e = OPERATION_META[type].effect
+/** Expected body count and reach at the chosen site. */
+function HarmEstimate({ type, siteIdValue }: { type: OperationType; siteIdValue: string }) {
+  const e = estimateImpact(type, siteIdValue)
+  const range = ([lo, hi]: [number, number]) => (lo === hi ? `${lo}` : `${lo}–${hi}`)
+  const parts = [
+    ...(e.dead[1] > 0 ? [`${range(e.dead)} ${e.countWord}`] : []),
+    ...(e.injured[1] > 0 ? [`${range(e.injured)} hurt`] : []),
+    `${range(e.radius)} m`,
+  ]
+  return (
+    <span className="font-mono text-lg leading-tight text-[#ffb09a]">
+      {type === 'bomb' ? 'If it detonates: ' : 'Expected: '}
+      {parts.join(' · ')}
+    </span>
+  )
+}
+
+function Impact({ mood, type, factor, siteIdValue }: { mood: Mood; type: OperationType; factor: number; siteIdValue: string }) {
+  // The operation itself, plus the fear from a typical body count. Bombs count only if they go off.
+  const est = estimateImpact(type, siteIdValue)
+  const harm = type === 'bomb' ? { happiness: 0, fear: 0, anxiety: 0 } : harmEffect((est.dead[0] + est.dead[1]) / 2, (est.injured[0] + est.injured[1]) / 2)
+  const base = OPERATION_META[type].effect
+  // The body count already includes the site, so undo the ×factor applied below.
+  const e = { happiness: base.happiness + harm.happiness / factor, fear: base.fear + harm.fear / factor, anxiety: base.anxiety + harm.anxiety / factor }
   const rows: { label: string; from: number; delta: number; bad: boolean }[] = [
     { label: 'Fear', from: mood.fear, delta: Math.round(e.fear * factor), bad: true },
     { label: 'Anxiety', from: mood.anxiety, delta: Math.round(e.anxiety * factor), bad: true },

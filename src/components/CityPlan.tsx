@@ -1,7 +1,9 @@
 import { useId } from 'react'
-import { cityPlan, PLAN_H, PLAN_W } from '#/lib/cityplan.ts'
-import { DISTRICTS, SITE_META, SITE_TYPES, siteId as makeSiteId, type DistrictId, type Mood, type SiteType } from '#/lib/districts.ts'
+import { IncidentLayer, type FxFocus } from '#/components/fx/IncidentLayer.tsx'
+import { cityPlan, PLAN_H, PLAN_METRES_PER_UNIT, PLAN_W } from '#/lib/cityplan.ts'
+import { DISTRICTS, parseSiteId, SITE_META, SITE_TYPES, siteId as makeSiteId, type DistrictId, type Mood, type SiteType } from '#/lib/districts.ts'
 import type { GlitchStatus } from '#/lib/glitch.ts'
+import { harmLine, type Incident } from '#/lib/incidents.ts'
 
 /** 12x12 pixel icons per landmark. # = main colour, + = accent. */
 const ICONS: Record<SiteType, { art: string[]; main: string; accent: string }> = {
@@ -124,10 +126,17 @@ export function CityPlan({
   incidents,
   selected,
   onSelect,
+  attacks,
+  fxFocus,
+  now,
 }: {
   district: DistrictId
   mood: Mood
   incidents: SiteIncident[]
+  /** Recent incidents in this district, drawn with their effect and radius. */
+  attacks?: Incident[]
+  fxFocus?: FxFocus
+  now?: number
   selected?: SiteType
   onSelect: (site: SiteType) => void
 }) {
@@ -137,6 +146,11 @@ export function CityPlan({
   // Fear keeps people indoors: at 0 fear everyone's out, at 80+ the streets are nearly empty.
   const outside = Math.round(plan.walkers.length * Math.max(0.08, 1 - mood.fear / 85))
   const walkerColor = mood.fear >= 50 ? '#ff8a6a' : mood.fear >= 30 ? '#ffd27a' : '#e9f5c8'
+  const attacksHere = (attacks ?? []).filter((a) => a.district === district)
+  const position = (d: DistrictId, t: SiteType) => (d === district ? plan.sites[t] : null)
+  const clock = now ?? Date.now()
+  const marked = fxFocus?.highlight ? attacksHere.find((a) => a.key === fxFocus.highlight) : undefined
+  const markedSite = marked ? parseSiteId(marked.siteId) : null
 
   return (
     <svg viewBox={`0 0 ${PLAN_W} ${PLAN_H}`} className="block h-auto w-full select-none" role="group" aria-label={`City plan of ${DISTRICTS[district].name}. Pick a landmark.`}>
@@ -190,6 +204,13 @@ export function CityPlan({
           ))}
         </g>
       </g>
+
+      {/* Incident ground marks: scorch, stains, rubble and the affected radius */}
+      {attacksHere.length > 0 && (
+        <g clipPath={`url(#${uid}clip)`}>
+          <IncidentLayer incidents={attacksHere} now={clock} position={position} metresPerUnit={PLAN_METRES_PER_UNIT} u={4} showRadius focus={fxFocus} layer="ground" />
+        </g>
+      )}
 
       {/* Residents */}
       <g aria-hidden="true" shapeRendering="crispEdges">
@@ -288,6 +309,31 @@ export function CityPlan({
           </g>
         )
       })}
+      {/* Incident smoke, flames, fog: above the landmarks */}
+      {attacksHere.length > 0 && (
+        <IncidentLayer incidents={attacksHere} now={clock} position={position} metresPerUnit={PLAN_METRES_PER_UNIT} u={4} focus={fxFocus} layer="air" />
+      )}
+      {marked && markedSite && (
+        <IncidentTag incident={marked} at={plan.sites[markedSite.type]} />
+      )}
     </svg>
+  )
+}
+
+/** Readout next to the highlighted incident: what, how bad, how far. */
+function IncidentTag({ incident, at: [x, y] }: { incident: Incident; at: [number, number] }) {
+  const line = `${incident.label.toUpperCase()} · ${harmLine(incident).toUpperCase()}${incident.radius ? ` · R ${incident.radius} M` : ''}`
+  const w = Math.max(160, line.length * 10 + 20)
+  // Keep it on the plan: flip to the left near the right edge.
+  const left = x + 50 + w > PLAN_W - 8
+  const tx = left ? x - 50 - w : x + 50
+  const ty = Math.max(8, Math.min(PLAN_H - 40, y - 90))
+  return (
+    <g pointerEvents="none" aria-hidden="true" shapeRendering="crispEdges">
+      <rect x={tx} y={ty} width={w} height="32" fill="#0b0703" stroke="#ffb22e" strokeWidth="3" />
+      <text x={tx + w / 2} y={ty + 23} textAnchor="middle" fill="#ffb22e" style={{ fontFamily: 'var(--font-mono)', fontSize: 22 }}>
+        {line}
+      </text>
+    </g>
   )
 }

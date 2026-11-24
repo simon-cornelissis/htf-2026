@@ -318,7 +318,7 @@ function DefusedScreen({ bomb }: { bomb: BombState }) {
           {bomb.defusedByCodename ? `${bomb.defusedByCodename} cut the last wire.` : 'The last wire is cut.'}{' '}
           {bomb.siteName} is safe.
         </p>
-        <p className="text-xl text-phos-dim">The glitch is marked fixed and the save is in the radio log.</p>
+        <p className="text-xl text-phos-dim">No one was hurt. The glitch is marked fixed and the save is in the radio log.</p>
         <div className="mt-4 flex flex-wrap justify-center gap-3">
           <Link to="/leaderboard" className="btn px-6 py-3 text-sm">See the leaderboard ▸</Link>
           <Link to="/glitches/$glitchId" params={{ glitchId: bomb.glitchId }} className="btn px-6 py-3 text-sm">
@@ -351,6 +351,13 @@ function DetonatedScreen({ bomb, districtName, flash }: { bomb: BombState; distr
         <p className="text-3xl leading-tight text-[#ffd8cc]">
           The device at {bomb.siteName} went off.
         </p>
+        {bomb.casualties != null && (
+          <dl className="grid grid-cols-3 gap-3" style={flash ? { animation: 'defuse-rise 500ms steps(5) 900ms both' } : undefined}>
+            <Toll label="Dead" value={bomb.casualties} />
+            <Toll label="Injured" value={bomb.injured ?? 0} />
+            <Toll label="Blast radius" value={`${bomb.blastRadius ?? 0} m`} />
+          </dl>
+        )}
         <p className="max-w-2xl text-2xl leading-tight text-[#ffb09c]">
           Fear in {districtName} is spiking. Residents are staying indoors and the streets around the site are closed.
         </p>
@@ -364,5 +371,14 @@ function DetonatedScreen({ bomb, districtName, flash }: { bomb: BombState; distr
         </div>
       </div>
     </section>
+  )
+}
+
+function Toll({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <dt className="stamp text-[12px]">{label}</dt>
+      <dd className="readout px-4 text-5xl leading-tight tabular-nums">{value}</dd>
+    </div>
   )
 }

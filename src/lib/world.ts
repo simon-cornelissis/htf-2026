@@ -4,7 +4,7 @@ import { db } from '#/db/index.ts'
 import { echoes, glitches, guardians, operations } from '#/db/schema.ts'
 import { FUSE_SECONDS, generatePuzzle } from '#/lib/bomb.ts'
 import { siteName, type DistrictId } from '#/lib/districts.ts'
-import { computeMoods, type DistrictMood } from '#/lib/operations.ts'
+import { computeImpact, computeMoods, IMPACT, type DistrictMood } from '#/lib/operations.ts'
 
 /** Next id like GL-0143, from the highest existing number. */
 export function nextId(prefix: 'GL' | 'EC' | 'OP', ids: string[]): string {
@@ -64,14 +64,31 @@ export function executeDueOperations(now = new Date()) {
           reportingGuardianId: RELAY_GUARDIAN.guardianId,
         })
         .run()
-      const bomb =
-        op.type === 'bomb'
-          ? {
-              fuseEndsAt: new Date(new Date(op.scheduledFor).getTime() + FUSE_SECONDS * 1000).toISOString(),
-              puzzle: JSON.stringify(generatePuzzle(Number(op.operationId.replace(/D/g, '')) * 7919 + Date.now() % 100000)),
-            }
-          : {}
-      tx.update(operations).set({ status: 'EXECUTED', glitchId, ...bomb }).where(eq(operations.operationId, op.operationId)).run()
+      if (op.type === 'bomb') {
+        const bomb = {
+          fuseEndsAt: new Date(new Date(op.scheduledFor).getTime() + FUSE_SECONDS * 1000).toISOString(),
+          puzzle: JSON.stringify(generatePuzzle(Number(op.operationId.replace(/\D/g, '')) * 7919 + (Date.now() % 100000))),
+        }
+        tx.update(operations).set({ status: 'EXECUTED', glitchId, ...bomb }).where(eq(operations.operationId, op.operationId)).run()
+        continue
+      }
+      // Everything else does its harm the moment it goes off.
+      const harm = computeImpact(op.operationId, op.type, op.siteId)
+      if (harm.casualties + harm.injured > 0) {
+        const counted = IMPACT[op.type].countWord === 'missing' ? `${harm.casualties} missing` : `${harm.casualties} dead, ${harm.injured} injured`
+        const ids = tx.select({ id: echoes.echoId }).from(echoes).all().map((r) => r.id)
+        const at = Math.min(now.getTime(), new Date(op.scheduledFor).getTime() + 60_000)
+        tx.insert(echoes)
+          .values({
+            echoId: nextId('EC', ids),
+            glitchId,
+            description: `First count from the scene: ${counted}. Area affected out to ${harm.blastRadius} m.`,
+            timestamp: new Date(at).toISOString(),
+            reportingGuardianId: RELAY_GUARDIAN.guardianId,
+          })
+          .run()
+      }
+      tx.update(operations).set({ status: 'EXECUTED', glitchId, ...harm }).where(eq(operations.operationId, op.operationId)).run()
     }
   })
 }
@@ -97,8 +114,9 @@ export function detonateExpiredBombs(now = new Date()) {
   ensureRelay()
   db.transaction((tx) => {
     for (const op of expired) {
+      const impact = computeImpact(op.operationId, 'bomb', op.siteId)
       tx.update(operations)
-        .set({ outcome: 'DETONATED', resolvedAt: op.fuseEndsAt })
+        .set({ outcome: 'DETONATED', resolvedAt: op.fuseEndsAt, ...impact })
         .where(eq(operations.operationId, op.operationId))
         .run()
       if (!op.glitchId) continue
@@ -107,7 +125,7 @@ export function detonateExpiredBombs(now = new Date()) {
         .values({
           echoId: nextId('EC', echoIds),
           glitchId: op.glitchId,
-          description: `The device at ${siteName(op.siteId) ?? 'the site'} detonated. Nobody reached it in time.`,
+          description: `The device at ${siteName(op.siteId) ?? 'the site'} detonated. Nobody reached it in time. ${impact.casualties} dead, ${impact.injured} injured, damage out to ${impact.blastRadius} m.`,
           timestamp: op.fuseEndsAt!,
           reportingGuardianId: RELAY_GUARDIAN.guardianId,
         })
@@ -140,6 +158,8 @@ export function loadMoods(revealOperations: boolean): Record<DistrictId, Distric
       scheduledFor: operations.scheduledFor,
       outcome: operations.outcome,
       resolvedAt: operations.resolvedAt,
+      casualties: operations.casualties,
+      injured: operations.injured,
     })
     .from(operations)
     .where(eq(operations.status, 'EXECUTED'))

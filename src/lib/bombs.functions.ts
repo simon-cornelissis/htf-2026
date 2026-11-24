@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
 import { echoes, glitches, guardians, operations } from '#/db/schema.ts'
 import {
@@ -11,6 +11,7 @@ import {
   type PublicBombPuzzle,
 } from '#/lib/bomb.ts'
 import { siteName, type DistrictId } from '#/lib/districts.ts'
+import { computeImpact } from '#/lib/operations.ts'
 import { requireGuardian, requireReporter } from '#/lib/session.ts'
 import { detonateExpiredBombs, executeDueOperations, nextId } from '#/lib/world.ts'
 
@@ -35,6 +36,23 @@ export type BombState = ActiveBomb & {
   resolvedAt: string | null
   defusedByCodename: string | null
   defusePoints: number | null
+  /** Set once it detonates. A defused device harms nobody (all 0). */
+  casualties: number | null
+  injured: number | null
+  /** Metres. */
+  blastRadius: number | null
+}
+
+/** A device that went off recently: shown briefly in the alert strip. */
+export type RecentBlast = {
+  glitchId: string
+  district: DistrictId
+  siteName: string
+  /** ISO 8601 */
+  detonatedAt: string
+  casualties: number
+  injured: number
+  blastRadius: number
 }
 
 export type CutResult = {
@@ -55,6 +73,9 @@ function loadBomb(glitchId: string) {
       outcome: operations.outcome,
       resolvedAt: operations.resolvedAt,
       defusePoints: operations.defusePoints,
+      casualties: operations.casualties,
+      injured: operations.injured,
+      blastRadius: operations.blastRadius,
       defusedByCodename: guardians.codename,
     })
     .from(operations)
@@ -76,7 +97,18 @@ function toState(row: NonNullable<ReturnType<typeof loadBomb>>): BombState {
     resolvedAt: row.resolvedAt,
     defusedByCodename: row.defusedByCodename,
     defusePoints: row.defusePoints,
+    ...harmFor(row),
   }
+}
+
+/** Stored harm, or the seeded numbers for devices that went off before they were stored. */
+function harmFor(row: { operationId: string; siteId: string; outcome: string | null; casualties: number | null; injured: number | null; blastRadius: number | null }) {
+  if (row.outcome === 'DEFUSED') return { casualties: 0, injured: 0, blastRadius: 0 }
+  if (row.outcome !== 'DETONATED') return { casualties: null, injured: null, blastRadius: null }
+  if (row.casualties != null && row.injured != null && row.blastRadius != null) {
+    return { casualties: row.casualties, injured: row.injured, blastRadius: row.blastRadius }
+  }
+  return computeImpact(row.operationId, 'bomb', row.siteId)
 }
 
 /** Every device currently ticking. Shown to all guardians as an alert. */
@@ -103,6 +135,45 @@ export const getActiveBombs = createServerFn({ method: 'GET' }).handler(async ()
       armedAt: r.armedAt,
       fuseEndsAt: r.fuseEndsAt!,
     }))
+})
+
+/** How long a detonation stays in the alert strip. */
+const BLAST_NEWS_MS = 10 * 60_000
+
+/** Devices that detonated in the last few minutes, newest first, with the damage done. */
+export const getRecentBlasts = createServerFn({ method: 'GET' }).handler(async (): Promise<RecentBlast[]> => {
+  requireGuardian()
+  executeDueOperations()
+  const since = new Date(Date.now() - BLAST_NEWS_MS).toISOString()
+  return db
+    .select({
+      operationId: operations.operationId,
+      glitchId: operations.glitchId,
+      district: operations.district,
+      siteId: operations.siteId,
+      outcome: operations.outcome,
+      resolvedAt: operations.resolvedAt,
+      casualties: operations.casualties,
+      injured: operations.injured,
+      blastRadius: operations.blastRadius,
+    })
+    .from(operations)
+    .where(and(eq(operations.type, 'bomb'), eq(operations.outcome, 'DETONATED'), gte(operations.resolvedAt, since)))
+    .orderBy(desc(operations.resolvedAt))
+    .all()
+    .filter((r) => r.glitchId && r.resolvedAt)
+    .map((r) => {
+      const harm = harmFor(r)
+      return {
+        glitchId: r.glitchId!,
+        district: r.district,
+        siteName: siteName(r.siteId) ?? r.siteId,
+        detonatedAt: r.resolvedAt!,
+        casualties: harm.casualties ?? 0,
+        injured: harm.injured ?? 0,
+        blastRadius: harm.blastRadius ?? 0,
+      }
+    })
 })
 
 /** One device, armed or resolved, with its wires and manual (never the solution). Null if the glitch isn't a bomb. */
@@ -173,6 +244,9 @@ export const cutWire = createServerFn({ method: 'POST' })
           resolvedAt: now.toISOString(),
           defusedBy: guardian.guardianId,
           defusePoints: points,
+          casualties: 0,
+          injured: 0,
+          blastRadius: 0,
         })
         .where(eq(operations.operationId, row.operationId))
         .run()

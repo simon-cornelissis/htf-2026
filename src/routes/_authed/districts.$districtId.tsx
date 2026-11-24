@@ -10,6 +10,10 @@ import { StatusStamp } from '#/components/ui/StatusStamp.tsx'
 import { InfoTip, Tip } from '#/components/ui/Tooltip.tsx'
 import { DISTRICT_IDS, DISTRICTS, isDistrictId, SITE_META, SITE_TYPES, siteId, type SiteType } from '#/lib/districts.ts'
 import { getDistrict } from '#/lib/operations.functions.ts'
+import { getIncidents } from '#/lib/incidents.functions.ts'
+import { IncidentHistory } from '#/components/fx/IncidentHistory.tsx'
+import { useIncidents } from '#/components/fx/useIncidents.ts'
+import { useNow } from '#/lib/useNow.ts'
 import { canCommand } from '#/lib/glitch.ts'
 
 export const Route = createFileRoute('/_authed/districts/$districtId')({
@@ -18,7 +22,11 @@ export const Route = createFileRoute('/_authed/districts/$districtId')({
   }),
   loader: async ({ params }) => {
     if (!isDistrictId(params.districtId)) throw notFound()
-    return getDistrict({ data: params.districtId })
+    const [district, incidents] = await Promise.all([
+      getDistrict({ data: params.districtId }),
+      getIncidents({ data: { district: params.districtId } }),
+    ])
+    return { ...district, incidents }
   },
   head: ({ params }) => ({
     meta: [{ title: `${isDistrictId(params.districtId) ? DISTRICTS[params.districtId].name : 'District'} · Guardians of the Grid` }],
@@ -37,7 +45,9 @@ const authed = getRouteApi('/_authed')
 function DistrictPage() {
   const { districtId } = Route.useParams()
   const id = districtId as (typeof DISTRICT_IDS)[number]
-  const { mood, chatter, operations } = Route.useLoaderData()
+  const { mood, chatter, operations, incidents: loadedIncidents } = Route.useLoaderData()
+  const fx = useIncidents(loadedIncidents, id)
+  const now = useNow(30_000)
   const { site } = Route.useSearch()
   const { guardian } = authed.useRouteContext()
   const glitches = authed.useLoaderData()
@@ -108,14 +118,38 @@ function DistrictPage() {
             <span className="text-xl leading-tight text-ink-dim">Click a landmark.</span>
           </div>
           <div className="inset bg-edge p-1">
-            <CityPlan district={id} mood={mood} incidents={incidents} selected={site} onSelect={selectSite} />
+            <CityPlan
+              district={id}
+              mood={mood}
+              incidents={incidents}
+              selected={site}
+              onSelect={selectSite}
+              attacks={fx.incidents}
+              fxFocus={fx.focus}
+              now={now}
+            />
           </div>
           <ul className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 px-1 text-lg text-ink-dim uppercase" aria-label="City plan legend">
             <li className="flex items-center gap-2"><span aria-hidden="true" className="inline-block size-3 border border-edge bg-[#e9f5c8]" />Resident</li>
             <li className="flex items-center gap-2"><span aria-hidden="true" className="inline-block size-3.5 border-2 border-edge bg-[#ff3a22]" />Leaked glitch</li>
             <li className="flex items-center gap-2"><span aria-hidden="true" className="inline-block size-3.5 border-2 border-edge bg-[#ffb22e]" />Open glitch</li>
             {isCommander && <li className="flex items-center gap-2"><span aria-hidden="true" className="readout px-1 text-sm leading-none">OP</span>Planned operation</li>}
+            <li className="flex items-center gap-2">
+              <span aria-hidden="true" className="inline-block size-3.5 rounded-full border-2 border-dashed border-[#ff5a1a]" />
+              <Tip text="The dashed circle around an incident is the area it hit: everyone inside it was in danger. It fades over two days, along with the smoke and scorch marks.">
+                <span tabIndex={0}>Affected area</span>
+              </Tip>
+            </li>
           </ul>
+          <IncidentHistory
+            incidents={fx.incidents}
+            now={now}
+            hovered={fx.hovered}
+            pinned={fx.pinned}
+            onHover={fx.setHovered}
+            onPin={fx.setPinned}
+            onReplay={fx.replay}
+          />
         </section>
 
         <div className="flex min-w-0 flex-col gap-8">

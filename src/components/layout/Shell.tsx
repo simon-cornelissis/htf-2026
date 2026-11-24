@@ -7,7 +7,7 @@ import { BombAlert } from '#/components/BombAlert.tsx'
 import { InfoTip, Tip } from '#/components/ui/Tooltip.tsx'
 import { logout } from '#/lib/auth.functions.ts'
 import { DISTRICTS } from '#/lib/districts.ts'
-import { continuityIndex, type GlitchSummary } from '#/lib/glitch.ts'
+import { canCommand, canReport, continuityIndex, ROLE_LABEL, type GlitchSummary } from '#/lib/glitch.ts'
 import { useHotkeys } from '#/lib/useHotkeys.ts'
 
 const authed = getRouteApi('/_authed')
@@ -29,7 +29,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   useHotkeys({ e: () => openTransmit() })
 
-  const roleName = guardian.role === 'commander' ? 'COMMANDER' : 'DEFENDER'
+  const roleName = ROLE_LABEL[guardian.role].toUpperCase()
   // Demo codenames already carry the role ("COMMANDER", "DEFENDER1"): don't say it twice.
   const showRole = !guardian.codename.toUpperCase().includes(roleName)
 
@@ -64,13 +64,17 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="ml-auto flex items-center gap-4">
               <Tip
                 text={
-                  guardian.role === 'commander'
-                    ? 'Signed in as a commander: you can change glitch status, delete files and plan operations.'
-                    : 'Signed in as a defender: you can report echoes and follow glitches.'
+                  guardian.role === 'admin'
+                    ? 'Signed in as an admin: commander powers, plus overriding AI decisions and handling moderation escalations.'
+                    : guardian.role === 'commander'
+                      ? 'Signed in as a commander: you can change glitch status, delete files and plan operations.'
+                      : guardian.role === 'defender'
+                        ? 'Signed in as a defender: you can report echoes, defuse devices and follow glitches.'
+                        : 'Signed in as a guardian: read-only. You can follow glitches, search and ask questions.'
                 }
               >
               <div className="flex items-center gap-3" tabIndex={0}>
-                <span aria-hidden="true" data-on={guardian.role === 'commander' ? 'amber' : 'green'} className="lamp size-3.5" />
+                <span aria-hidden="true" data-on={canCommand(guardian.role) ? 'amber' : canReport(guardian.role) ? 'green' : undefined} className="lamp size-3.5" />
                 <div className="readout px-3 py-1 leading-none">
                   <div className="text-2xl">{guardian.codename}</div>
                   {showRole && <div className="text-lg text-[#d89a2e]">{roleName}</div>}

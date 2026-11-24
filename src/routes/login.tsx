@@ -11,7 +11,7 @@ export const Route = createFileRoute('/login')({
   component: LoginPage,
 })
 
-const DEMO_CODENAMES = ['COMMANDER', 'DEFENDER1', 'DEFENDER2']
+const DEMO_CODENAMES = ['ADMIN', 'COMMANDER', 'DEFENDER1', 'DEFENDER2', 'GUARDIAN']
 
 const BOOT = [
   'ACHRONA REGIONAL TERMINAL  v0.41',
@@ -127,7 +127,7 @@ function LoginPage() {
                       className="btn flex items-center justify-between px-2 py-1.5 text-sm"
                     >
                       {name}
-                      <span data-on={name === 'COMMANDER' ? 'amber' : 'green'} className="lamp size-2" aria-hidden="true" />
+                      <span data-on={name === 'COMMANDER' || name === 'ADMIN' ? 'amber' : name === 'GUARDIAN' ? undefined : 'green'} className="lamp size-2" aria-hidden="true" />
                     </button>
                   ))}
                 </div>

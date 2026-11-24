@@ -10,9 +10,28 @@ export const GLITCH_STATUSES = [
 
 export type GlitchStatus = (typeof GLITCH_STATUSES)[number]
 
-export const GUARDIAN_ROLES = ['defender', 'commander'] as const
+/**
+ * guardian: read-only (follow glitches, search, ask the chatbot).
+ * defender: reports echoes and defuses devices.
+ * commander: defender + status changes, deletes, assignments, operations.
+ * admin: commander + overrides on AI decisions and moderation escalations.
+ */
+export const GUARDIAN_ROLES = ['guardian', 'defender', 'commander', 'admin'] as const
 
 export type GuardianRole = (typeof GUARDIAN_ROLES)[number]
+
+export const ROLE_LABEL: Record<GuardianRole, string> = {
+  guardian: 'Guardian',
+  defender: 'Defender',
+  commander: 'Commander',
+  admin: 'Admin',
+}
+
+/** Commander powers: status, deletes, assignments, operations. Admins have them too. */
+export const canCommand = (role: GuardianRole) => role === 'commander' || role === 'admin'
+
+/** May post echoes and defuse devices. Everyone except read-only guardians. */
+export const canReport = (role: GuardianRole) => role !== 'guardian'
 
 export type Glitch = {
   glitchId: string

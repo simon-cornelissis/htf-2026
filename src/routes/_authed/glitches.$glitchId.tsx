@@ -11,6 +11,7 @@ import { deleteEcho, deleteGlitch, getGlitch, setGlitchStatus } from '#/lib/glit
 import { useHotkeys } from '#/lib/useHotkeys.ts'
 import { getBomb, type BombState } from '#/lib/bombs.functions.ts'
 import { useNow } from '#/lib/useNow.ts'
+import { canCommand } from '#/lib/glitch.ts'
 
 export const Route = createFileRoute('/_authed/glitches/$glitchId')({
   validateSearch: (search: Record<string, unknown>): { fresh?: boolean } => ({
@@ -51,7 +52,7 @@ function GlitchPage() {
   const router = useRouter()
   const transmit = useTransmit()
   const [error, setError] = useState<string | null>(null)
-  const isCommander = guardian.role === 'commander'
+  const isCommander = canCommand(guardian.role)
   const district = DISTRICTS[glitch.district]
   const site = parseSiteId(glitch.siteId)
 

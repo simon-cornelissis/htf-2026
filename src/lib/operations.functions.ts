@@ -13,6 +13,7 @@ import {
 } from '#/lib/operations.ts'
 import { requireCommander, requireGuardian } from '#/lib/session.ts'
 import { executeDueOperations, loadMoods, nextId } from '#/lib/world.ts'
+import { canCommand } from '#/lib/glitch.ts'
 
 export type Operation = {
   operationId: string
@@ -32,7 +33,7 @@ export const getMoods = createServerFn({ method: 'GET' }).handler(
   async (): Promise<Record<DistrictId, DistrictMood>> => {
     const guardian = requireGuardian()
     executeDueOperations()
-    return loadMoods(guardian.role === 'commander')
+    return loadMoods(canCommand(guardian.role))
   },
 )
 
@@ -45,7 +46,7 @@ export const getDistrict = createServerFn({ method: 'GET' })
     async ({ data: district }): Promise<{ mood: DistrictMood; chatter: string[]; operations: Operation[] | null }> => {
       const guardian = requireGuardian()
       executeDueOperations()
-      const isCommander = guardian.role === 'commander'
+      const isCommander = canCommand(guardian.role)
       const mood = loadMoods(isCommander)[district]
       const ops = isCommander
         ? db

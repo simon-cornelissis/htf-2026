@@ -7,9 +7,10 @@ import {
   type GlitchDetail,
   type GlitchStatus,
   type GlitchSummary,
+  canCommand,
 } from '#/lib/glitch.ts'
 import { isDistrictId, parseSiteId, type DistrictId } from '#/lib/districts.ts'
-import { requireCommander, requireGuardian } from '#/lib/session.ts'
+import { requireCommander, requireGuardian, requireReporter } from '#/lib/session.ts'
 import { executeDueOperations, nextId, stagedGlitches } from '#/lib/world.ts'
 
 const MAX_DESCRIPTION = 500
@@ -35,7 +36,7 @@ export const getGlitches = createServerFn({ method: 'GET' }).handler(
       .orderBy(desc(glitches.timestamp))
       .all()
     // Staged glitches look real to defenders. Only commanders learn which ones were planted.
-    if (guardian.role !== 'commander') return rows
+    if (!canCommand(guardian.role)) return rows
     const staged = stagedGlitches()
     return rows.map((r) => ({ ...r, stagedBy: staged.get(r.glitchId) ?? null }))
   },
@@ -66,7 +67,7 @@ export const getGlitch = createServerFn({ method: 'GET' })
       .where(eq(echoes.glitchId, glitchId))
       .orderBy(asc(echoes.timestamp))
       .all()
-    const stagedBy = guardian.role === 'commander' ? (stagedGlitches().get(glitchId) ?? null) : undefined
+    const stagedBy = canCommand(guardian.role) ? (stagedGlitches().get(glitchId) ?? null) : undefined
     return { ...glitch, echoes: rows, stagedBy }
   })
 
@@ -88,7 +89,7 @@ export const reportEcho = createServerFn({ method: 'POST' })
     return { description, glitchId, district: input.district, siteId: site ? input.siteId! : null }
   })
   .handler(async ({ data }): Promise<{ glitchId: string; echoId: string }> => {
-    const guardian = requireGuardian()
+    const guardian = requireReporter()
     const timestamp = new Date().toISOString()
 
     return db.transaction((tx) => {

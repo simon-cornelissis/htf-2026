@@ -11,7 +11,7 @@ import {
   type PublicBombPuzzle,
 } from '#/lib/bomb.ts'
 import { siteName, type DistrictId } from '#/lib/districts.ts'
-import { requireGuardian } from '#/lib/session.ts'
+import { requireGuardian, requireReporter } from '#/lib/session.ts'
 import { detonateExpiredBombs, executeDueOperations, nextId } from '#/lib/world.ts'
 
 /**
@@ -127,7 +127,7 @@ export const cutWire = createServerFn({ method: 'POST' })
     return { glitchId: String(input.glitchId), wire }
   })
   .handler(async ({ data }): Promise<CutResult> => {
-    const guardian = requireGuardian()
+    const guardian = requireReporter()
     const now = new Date()
     executeDueOperations(now)
 

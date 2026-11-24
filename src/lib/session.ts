@@ -1,12 +1,25 @@
 // Server-only helpers, called from inside server function handlers.
 import { randomBytes } from 'node:crypto'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { getCookie, setCookie, deleteCookie } from '@tanstack/react-start/server'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
 import { guardians, sessions } from '#/db/schema.ts'
-import type { Guardian } from '#/lib/glitch.ts'
+import { canCommand, canReport, type Guardian } from '#/lib/glitch.ts'
 
 const COOKIE = 'achrona_session'
+
+/**
+ * Acting guardian for code that runs without a browser session: the AI
+ * pipeline and the MCP server. Inside runAs(), every server function and
+ * require*() check sees this guardian instead of the cookie, so the same
+ * role checks apply to humans, agents and MCP clients alike.
+ */
+const actor = new AsyncLocalStorage<Guardian>()
+
+export function runAs<T>(guardian: Guardian, fn: () => T): T {
+  return actor.run(guardian, fn)
+}
 const SESSION_DAYS = 7
 
 export function startSession(guardianId: string) {
@@ -32,6 +45,8 @@ export function endSession() {
 
 /** The signed-in guardian, or null. */
 export function currentGuardian(): Guardian | null {
+  const acting = actor.getStore()
+  if (acting) return acting
   const token = getCookie(COOKIE)
   if (!token) return null
   const row = db
@@ -61,8 +76,21 @@ export function requireGuardian(): Guardian {
 
 export function requireCommander(): Guardian {
   const guardian = requireGuardian()
-  if (guardian.role !== 'commander') {
+  if (!canCommand(guardian.role)) {
     throw new Error('Only commanders can do this.')
   }
+  return guardian
+}
+
+/** Defenders and up: may post echoes and defuse devices. */
+export function requireReporter(): Guardian {
+  const guardian = requireGuardian()
+  if (!canReport(guardian.role)) throw new Error('Guardians are read-only. Ask a defender to report this.')
+  return guardian
+}
+
+export function requireAdmin(): Guardian {
+  const guardian = requireGuardian()
+  if (guardian.role !== 'admin') throw new Error('Only admins can do this.')
   return guardian
 }

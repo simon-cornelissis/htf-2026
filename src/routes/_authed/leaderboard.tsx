@@ -2,6 +2,7 @@ import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { Medal, type MedalTier } from '#/components/leaderboard/Medal.tsx'
 import { Tip } from '#/components/ui/Tooltip.tsx'
 import { BADGES, getLeaderboard, SCORING, type Badge, type LeaderboardRow } from '#/lib/leaderboard.functions.ts'
+import { canCommand } from '#/lib/glitch.ts'
 
 export const Route = createFileRoute('/_authed/leaderboard')({
   loader: () => getLeaderboard(),
@@ -14,7 +15,7 @@ const authed = getRouteApi('/_authed')
 function LeaderboardPage() {
   const rows = Route.useLoaderData()
   const { guardian } = authed.useRouteContext()
-  const isCommander = guardian.role === 'commander'
+  const isCommander = canCommand(guardian.role)
   const scored = rows.filter((r) => r.points > 0)
   const podium = scored.slice(0, 3)
 

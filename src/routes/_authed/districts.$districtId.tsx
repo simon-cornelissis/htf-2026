@@ -10,6 +10,7 @@ import { StatusStamp } from '#/components/ui/StatusStamp.tsx'
 import { InfoTip, Tip } from '#/components/ui/Tooltip.tsx'
 import { DISTRICT_IDS, DISTRICTS, isDistrictId, SITE_META, SITE_TYPES, siteId, type SiteType } from '#/lib/districts.ts'
 import { getDistrict } from '#/lib/operations.functions.ts'
+import { canCommand } from '#/lib/glitch.ts'
 
 export const Route = createFileRoute('/_authed/districts/$districtId')({
   validateSearch: (search: Record<string, unknown>): { site?: SiteType } => ({
@@ -44,7 +45,7 @@ function DistrictPage() {
   const transmit = useTransmit()
   const [plan, setPlan] = useState<PlanRequest | null>(null)
   const d = DISTRICTS[id]
-  const isCommander = guardian.role === 'commander'
+  const isCommander = canCommand(guardian.role)
 
   const here = useMemo(() => glitches.filter((g) => g.district === id), [glitches, id])
   const incidents: SiteIncident[] = useMemo(

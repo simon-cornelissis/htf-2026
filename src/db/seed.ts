@@ -11,6 +11,8 @@ const guardianRows: (typeof guardians.$inferInsert)[] = [
   { guardianId: 'GD-001', codename: 'COMMANDER', role: 'commander', passwordHash: hashPassword(DEMO_PASSWORD) },
   { guardianId: 'GD-002', codename: 'DEFENDER1', role: 'defender', passwordHash: hashPassword(DEMO_PASSWORD) },
   { guardianId: 'GD-003', codename: 'DEFENDER2', role: 'defender', passwordHash: hashPassword(DEMO_PASSWORD) },
+  { guardianId: 'GD-004', codename: 'ADMIN', role: 'admin', passwordHash: hashPassword(DEMO_PASSWORD) },
+  { guardianId: 'GD-005', codename: 'GUARDIAN', role: 'guardian', passwordHash: hashPassword(DEMO_PASSWORD) },
 ]
 
 const glitchRows: (typeof glitches.$inferInsert)[] = [

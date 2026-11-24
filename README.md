@@ -17,8 +17,13 @@ Om op te starten kan je volgende commando's gebruiken.
 
 ```bash
 npm install
+npm run db:setup   # create tables + seed demo data
 npm run dev
 ```
+
+> **Node 24 vereist** (zie `.node-version`). Op Node 22.12 crasht `better-sqlite3` (segfault).
+
+**Demo guardians** (passphrase `continuity`): `VESK` (commander), `MORROW` en `LYRE` (defenders).
 ## Beoordeling
 > Hoe wij beoordelen wordt voor de start van de hackathon met alle studenten gedeeld, zodat dit meteen duidelijk is voor iedereen.
 

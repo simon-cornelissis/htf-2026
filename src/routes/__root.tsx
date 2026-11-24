@@ -6,7 +6,6 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { Sidebar } from '#/components/layout/Sidebar'
 
 import appCss from '../styles.css?url'
 
@@ -15,24 +14,14 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'Control Center' },
+      { name: 'theme-color', content: '#15140e' },
+      { title: 'Guardians of the Grid · Achrona' },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
   }),
   shellComponent: RootDocument,
-  component: AppLayout,
+  component: Outlet,
 })
-
-function AppLayout() {
-  return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="min-w-0 flex-1 px-16 py-10">
-        <Outlet />
-      </main>
-    </div>
-  )
-}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
@@ -40,17 +29,19 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="bg-app font-sans antialiased">
+      <body className="min-h-screen bg-wall font-sans text-phos-mid">
         {children}
-        <TanStackDevtools
-          config={{ position: 'bottom-right' }}
-          plugins={[
-            {
-              name: 'Tanstack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {import.meta.env.DEV && (
+          <TanStackDevtools
+            config={{ position: 'bottom-left' }}
+            plugins={[
+              {
+                name: 'Tanstack Router',
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+        )}
         <Scripts />
       </body>
     </html>

@@ -1,0 +1,97 @@
+// Server-only: called from inside server function handlers.
+import { and, eq, isNotNull, lte } from 'drizzle-orm'
+import { db } from '#/db/index.ts'
+import { echoes, glitches, guardians, operations } from '#/db/schema.ts'
+import type { DistrictId } from '#/lib/districts.ts'
+import { computeMoods, type DistrictMood } from '#/lib/operations.ts'
+
+/** Next id like GL-0143, from the highest existing number. */
+export function nextId(prefix: 'GL' | 'EC' | 'OP', ids: string[]): string {
+  const highest = ids.reduce((top, id) => {
+    const n = Number(id.split('-')[1])
+    return Number.isFinite(n) && n > top ? n : top
+  }, 0)
+  return `${prefix}-${String(highest + 1).padStart(4, '0')}`
+}
+
+/**
+ * Anonymous civilian tip line. Staged reports arrive through it so defenders
+ * can't trace them back to a commander. It has no password and can't sign in.
+ */
+export const RELAY_GUARDIAN = { guardianId: 'GD-000', codename: 'CIVILIAN RELAY', role: 'defender' as const, passwordHash: '!' }
+
+function ensureRelay() {
+  db.insert(guardians).values(RELAY_GUARDIAN).onConflictDoNothing().run()
+}
+
+/**
+ * Fire every planned operation whose time has come: it becomes a LEAKED
+ * glitch with the cover story as its first echo, sent in through the civilian relay.
+ * Runs lazily on every read, so no background job is needed.
+ */
+export function executeDueOperations(now = new Date()) {
+  const due = db
+    .select()
+    .from(operations)
+    .where(and(eq(operations.status, 'PLANNED'), lte(operations.scheduledFor, now.toISOString())))
+    .all()
+  if (due.length === 0) return
+  ensureRelay()
+
+  db.transaction((tx) => {
+    for (const op of due) {
+      const glitchIds = tx.select({ id: glitches.glitchId }).from(glitches).all().map((r) => r.id)
+      const glitchId = nextId('GL', glitchIds)
+      tx.insert(glitches)
+        .values({
+          glitchId,
+          status: 'LEAKED',
+          district: op.district,
+          siteId: op.siteId,
+          description: op.coverStory,
+          timestamp: op.scheduledFor,
+        })
+        .run()
+      const echoIds = tx.select({ id: echoes.echoId }).from(echoes).all().map((r) => r.id)
+      tx.insert(echoes)
+        .values({
+          echoId: nextId('EC', echoIds),
+          glitchId,
+          description: op.coverStory,
+          timestamp: op.scheduledFor,
+          reportingGuardianId: RELAY_GUARDIAN.guardianId,
+        })
+        .run()
+      tx.update(operations).set({ status: 'EXECUTED', glitchId }).where(eq(operations.operationId, op.operationId)).run()
+    }
+  })
+}
+
+/** Glitch id -> operation id, for glitches that were staged. Commanders only. */
+export function stagedGlitches(): Map<string, string> {
+  const rows = db
+    .select({ glitchId: operations.glitchId, operationId: operations.operationId })
+    .from(operations)
+    .where(isNotNull(operations.glitchId))
+    .all()
+  return new Map(rows.map((r) => [r.glitchId!, r.operationId]))
+}
+
+export function loadMoods(revealOperations: boolean): Record<DistrictId, DistrictMood> {
+  const g = db
+    .select({ glitchId: glitches.glitchId, district: glitches.district, status: glitches.status })
+    .from(glitches)
+    .all()
+  const ops = db
+    .select({
+      operationId: operations.operationId,
+      district: operations.district,
+      siteId: operations.siteId,
+      type: operations.type,
+      scheduledFor: operations.scheduledFor,
+    })
+    .from(operations)
+    .where(eq(operations.status, 'EXECUTED'))
+    .all()
+  return computeMoods(g, ops, revealOperations)
+}

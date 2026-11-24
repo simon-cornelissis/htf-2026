@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { Power } from 'lucide-react'
 import { Seal, Tube, Wires } from '#/components/ui/Seal.tsx'
 import { TransmitDialog, type TransmitTarget } from '#/components/TransmitDialog.tsx'
+import { InfoTip, Tip } from '#/components/ui/Tooltip.tsx'
 import { logout } from '#/lib/auth.functions.ts'
 import { DISTRICTS } from '#/lib/districts.ts'
 import { continuityIndex, type GlitchSummary } from '#/lib/glitch.ts'
@@ -57,15 +58,23 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="ml-auto flex items-center gap-4">
-              <div className="flex items-center gap-3">
+              <Tip
+                text={
+                  guardian.role === 'commander'
+                    ? 'Signed in as a commander: you can change glitch status, delete files and plan operations.'
+                    : 'Signed in as a defender: you can report echoes and follow glitches.'
+                }
+              >
+              <div className="flex items-center gap-3" tabIndex={0}>
                 <span aria-hidden="true" data-on={guardian.role === 'commander' ? 'amber' : 'green'} className="lamp size-3.5" />
                 <div className="readout px-3 py-1 leading-none">
                   <div className="text-2xl">{guardian.codename}</div>
                   <div className="text-base text-[#c98a1e]">
-                    {guardian.role === 'commander' ? 'CMDR' : 'DEF'} · {guardian.guardianId}
+                    {guardian.role === 'commander' ? 'COMMANDER' : 'DEFENDER'}
                   </div>
                 </div>
               </div>
+              </Tip>
               <button
                 type="button"
                 onClick={signOut}
@@ -76,7 +85,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 <span data-on="red" className="lamp flex size-9 items-center justify-center text-white/80">
                   <Power className="size-4" />
                 </span>
-                <span className="stamp text-[10px]">Off</span>
+                <span className="stamp text-[10px]">Sign out</span>
               </button>
             </div>
           </div>
@@ -127,7 +136,10 @@ function IntegrityGauge({ glitches }: { glitches: GlitchSummary[] }) {
     <div className="flex items-center gap-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={index} aria-label="Grid integrity">
       <div>
         <div className="flex items-center justify-between gap-4">
-          <span className="stamp text-xs">Grid integrity</span>
+          <span className="flex items-center gap-2">
+            <span className="stamp text-xs">Grid integrity</span>
+            <InfoTip label="What is grid integrity?" text="How intact Achrona's grid is. Every open glitch drains it: leaked ones the most, contained ones the least. Below 60% the grid goes critical." />
+          </span>
           {critical && <span className="font-pixel text-xs text-[#ff6a4e] uppercase animate-blink">Critical</span>}
         </div>
         <div className="inset mt-1.5 flex gap-[2px] bg-[#0b0703] p-1.5" aria-hidden="true">
@@ -170,7 +182,7 @@ function RadioStrip({ glitches }: { glitches: GlitchSummary[] }) {
   return (
     <div className="metal flex items-stretch gap-3 px-3 py-2" aria-hidden="true">
       <div className="hazard flex shrink-0 items-center px-1.5">
-        <span className="bg-[#141208] px-2 py-0.5 font-pixel text-xs text-stamp">Radio</span>
+        <span className="bg-[#141208] px-2 py-0.5 font-pixel text-xs text-stamp" title="Live radio: the newest open glitches scroll by here.">Radio</span>
       </div>
       <div className="crt min-w-0 flex-1 rounded-[6px] px-3 py-0.5">
         <div className="inline-block animate-ticker whitespace-nowrap text-xl text-phos uppercase">

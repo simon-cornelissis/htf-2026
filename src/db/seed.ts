@@ -1,21 +1,23 @@
 import { db } from './index.ts'
-import { echoes, glitches, guardians, sessions } from './schema.ts'
+import { echoes, glitches, guardians, operations, sessions } from './schema.ts'
 import { hashPassword } from '../lib/password.ts'
 
 /** Demo password for every seeded guardian. */
 const DEMO_PASSWORD = 'guest'
 
 const guardianRows: (typeof guardians.$inferInsert)[] = [
+  // Anonymous civilian tip line: staged reports come through here. Can't sign in.
+  { guardianId: 'GD-000', codename: 'CIVILIAN RELAY', role: 'defender', passwordHash: '!' },
   { guardianId: 'GD-001', codename: 'COMMANDER', role: 'commander', passwordHash: hashPassword(DEMO_PASSWORD) },
   { guardianId: 'GD-002', codename: 'DEFENDER1', role: 'defender', passwordHash: hashPassword(DEMO_PASSWORD) },
   { guardianId: 'GD-003', codename: 'DEFENDER2', role: 'defender', passwordHash: hashPassword(DEMO_PASSWORD) },
 ]
 
 const glitchRows: (typeof glitches.$inferInsert)[] = [
-  { glitchId: 'GL-0142', status: 'LEAKED', district: 'clockworks', description: 'Time loop detected near the eastern clock tower', timestamp: '2026-11-10T13:42:00Z' },
+  { glitchId: 'GL-0142', status: 'LEAKED', district: 'clockworks', siteId: 'clockworks:square', description: 'Time loop detected near the eastern clock tower', timestamp: '2026-11-10T13:42:00Z' },
   { glitchId: 'GL-0141', status: 'ASSESSING', district: 'mirewells', description: 'Magic reserves dropping faster than expected', timestamp: '2026-11-10T11:05:00Z' },
-  { glitchId: 'GL-0140', status: 'LEAKED', district: 'greenhold', description: 'Vines growing backwards into their seeds along the river', timestamp: '2026-11-10T09:20:00Z' },
-  { glitchId: 'GL-0139', status: 'CONTAINING', district: 'archive', description: 'Portal flicker in the archive vaults', timestamp: '2026-11-09T22:17:00Z' },
+  { glitchId: 'GL-0140', status: 'LEAKED', district: 'greenhold', siteId: 'greenhold:square', description: 'Vines growing backwards into their seeds along the river', timestamp: '2026-11-10T09:20:00Z' },
+  { glitchId: 'GL-0139', status: 'CONTAINING', district: 'archive', siteId: 'archive:station', description: 'Portal flicker in the archive vaults', timestamp: '2026-11-09T22:17:00Z' },
   { glitchId: 'GL-0138', status: 'ASSESSING', district: 'spire', description: 'Spire lanterns blinking the pattern from yesterday', timestamp: '2026-11-09T18:44:00Z' },
   { glitchId: 'GL-0137', status: 'FIXED', district: 'rustmarket', description: 'Echo sensors reporting duplicate signals', timestamp: '2026-11-08T08:30:00Z' },
   { glitchId: 'GL-0136', status: 'FIXED', district: 'ashfield', description: 'Ash falling upward over the old depot', timestamp: '2026-11-07T16:05:00Z' },
@@ -35,15 +37,26 @@ const echoRows: (typeof echoes.$inferInsert)[] = [
   { echoId: 'EC-0278', glitchId: 'GL-0136', description: 'Rain came, ash settled. Depot quiet again', timestamp: '2026-11-08T06:40:00Z', reportingGuardianId: 'GD-001' },
 ]
 
+// Operations are relative to now, so the demo always has fresh effects:
+// one went off 3 hours ago (fires on the first page load), one is still pending.
+const now = Date.now()
+const minutes = (m: number) => new Date(now + m * 60_000).toISOString()
+const operationRows: (typeof operations.$inferInsert)[] = [
+  { operationId: 'OP-0001', district: 'rustmarket', siteId: 'rustmarket:square', type: 'sighting', coverStory: 'Residents report a figure walking backwards through Barter Ring', scheduledFor: minutes(-180), createdAt: minutes(-240), plannerId: 'GD-001', status: 'PLANNED' },
+  { operationId: 'OP-0002', district: 'greenhold', siteId: 'greenhold:school', type: 'evacuation', coverStory: 'Evacuation sirens at Greenhold Commons School sounded with no operator present', scheduledFor: minutes(45), createdAt: minutes(-10), plannerId: 'GD-001', status: 'PLANNED' },
+]
+
 // Wipe and refill so the seed can be re-run safely.
 db.transaction((tx) => {
   tx.delete(sessions).run()
+  tx.delete(operations).run()
   tx.delete(echoes).run()
   tx.delete(glitches).run()
   tx.delete(guardians).run()
   tx.insert(guardians).values(guardianRows).run()
   tx.insert(glitches).values(glitchRows).run()
   tx.insert(echoes).values(echoRows).run()
+  tx.insert(operations).values(operationRows).run()
 })
 
 console.log(

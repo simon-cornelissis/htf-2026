@@ -45,6 +45,11 @@ export function HoldButton({
       frame.current = null
       setProgress(1)
       onConfirm()
+      // Empty the fill again so the button can be used for the next one.
+      setTimeout(() => {
+        done.current = false
+        setProgress(0)
+      }, 400)
     }, holdMs)
     const tick = (t: number) => {
       setProgress(Math.min(1, (t - start.current) / holdMs))

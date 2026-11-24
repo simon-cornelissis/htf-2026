@@ -107,6 +107,22 @@ body {
   98% { opacity: 0.8; }
 }
 
+/* Residents walking along a street on the city plan. */
+@keyframes walk-x {
+  from { transform: translateX(-36px); }
+  to { transform: translateX(36px); }
+}
+@keyframes walk-y {
+  from { transform: translateY(-30px); }
+  to { transform: translateY(30px); }
+}
+
+/* Zooming into a district from the world map. */
+@keyframes zoom-in {
+  from { transform: scale(0.35); opacity: 0; filter: brightness(2.5); }
+  to { transform: none; opacity: 1; filter: none; }
+}
+
 /* CRT power-on / signal tear when something new lands. */
 @keyframes crt-in {
   0% { opacity: 0; transform: scaleY(0.02); filter: brightness(3); }

@@ -18,6 +18,8 @@ export type Glitch = {
   glitchId: string
   status: GlitchStatus
   district: DistrictId
+  /** Optional landmark, e.g. "clockworks:station". */
+  siteId: string | null
   description: string
   /** ISO 8601 */
   timestamp: string
@@ -27,6 +29,8 @@ export type Glitch = {
 export type GlitchSummary = Glitch & {
   echoCount: number
   lastEchoAt: string | null
+  /** Operation id when this glitch was staged. Only ever sent to commanders. */
+  stagedBy?: string | null
 }
 
 export type Guardian = {
@@ -45,7 +49,7 @@ export type Echo = {
   reportingCodename: string
 }
 
-export type GlitchDetail = Glitch & { echoes: Echo[] }
+export type GlitchDetail = Glitch & { echoes: Echo[]; stagedBy?: string | null }
 
 /** Display copy per status. The UI never relies on colour alone. */
 export const STATUS_META: Record<

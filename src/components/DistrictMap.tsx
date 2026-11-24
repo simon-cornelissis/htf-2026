@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useId, useMemo } from 'react'
 import { DISTRICT_IDS, DISTRICTS, type DistrictId } from '#/lib/districts.ts'
 import type { Glitch, GlitchStatus } from '#/lib/glitch.ts'
+import type { DistrictMood } from '#/lib/operations.ts'
 
 export type DistrictStats = { open: number; leaked: number; total: number }
 
@@ -47,6 +48,9 @@ export function DistrictMap({
   highlight,
   focusGlitchId,
   compact = false,
+  overlay = 'glitches',
+  moods,
+  onZoom,
 }: {
   glitches: Glitch[]
   /** Interactive mode: the district currently filtered on. */
@@ -57,6 +61,11 @@ export function DistrictMap({
   highlight?: DistrictId
   focusGlitchId?: string
   compact?: boolean
+  /** What the district colouring shows: glitch threat or resident fear. */
+  overlay?: 'glitches' | 'mood'
+  moods?: Record<DistrictId, DistrictMood>
+  /** Double-click (or Shift+Enter) on a district zooms into it. */
+  onZoom?: (id: DistrictId) => void
 }) {
   const navigate = useNavigate()
   // Unique SVG ids: several maps can be on one page (board + dialog).
@@ -135,8 +144,11 @@ export function DistrictMap({
           return (
             <g key={id} opacity={dim ? 0.55 : 1}>
               <polygon points={d.points} fill={ref('dither')} stroke="#2a2214" strokeWidth="4" strokeLinejoin="bevel" />
-              {s.leaked > 0 && <polygon points={d.points} fill={ref('hatch-red')} />}
-              {s.leaked === 0 && s.open > 0 && <polygon points={d.points} fill={ref('hatch-amber')} />}
+              {overlay === 'glitches' && s.leaked > 0 && <polygon points={d.points} fill={ref('hatch-red')} />}
+              {overlay === 'glitches' && s.leaked === 0 && s.open > 0 && <polygon points={d.points} fill={ref('hatch-amber')} />}
+              {overlay === 'mood' && moods && (
+                <polygon points={d.points} fill={moodFill(moods[id].fear)} opacity={0.25 + (moods[id].fear / 100) * 0.6} />
+              )}
             </g>
           )
         })}
@@ -201,10 +213,14 @@ export function DistrictMap({
             aria-pressed={interactive ? isSelected : undefined}
             className={interactive ? 'cursor-pointer outline-none [&:focus-visible>polygon]:stroke-[#ffb22e] [&:hover>polygon]:fill-[rgb(255_240_190/0.08)]' : undefined}
             onClick={interactive ? () => onSelect?.(isSelected ? undefined : id) : undefined}
+            onDoubleClick={onZoom ? () => onZoom(id) : undefined}
             onKeyDown={
               interactive
                 ? (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.key === 'Enter' && e.shiftKey && onZoom) {
+                      e.preventDefault()
+                      onZoom(id)
+                    } else if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
                       onSelect?.(isSelected ? undefined : id)
                     }
@@ -230,7 +246,22 @@ export function DistrictMap({
             >
               {d.name}
             </text>
-            {!compact && (
+            {!compact && overlay === 'mood' && moods && (
+              <text
+                x={cx}
+                y={cy + 34}
+                textAnchor="middle"
+                fill={moods[id].fear >= 40 ? '#ff6a4e' : '#9dff86'}
+                stroke="#140f07"
+                strokeWidth="5"
+                paintOrder="stroke"
+                style={{ fontFamily: 'var(--font-mono)', fontSize: 24 }}
+                pointerEvents="none"
+              >
+                {`FEAR ${moods[id].fear} · JOY ${moods[id].happiness}`}
+              </text>
+            )}
+            {!compact && overlay === 'glitches' && (
               <text
                 x={cx}
                 y={cy + 34}
@@ -319,4 +350,12 @@ export function DistrictMap({
       )}
     </svg>
   )
+}
+
+/** Calm districts stay sand; frightened ones go deep red. */
+function moodFill(fear: number) {
+  if (fear >= 60) return '#7a0f08'
+  if (fear >= 40) return '#a3301a'
+  if (fear >= 25) return '#b8762a'
+  return '#4f6a2a'
 }

@@ -5,7 +5,7 @@ import { Kbd, useTransmit } from '#/components/layout/Shell.tsx'
 import { HoldButton } from '#/components/ui/HoldButton.tsx'
 import { formatFull, RelativeTime } from '#/components/ui/RelativeTime.tsx'
 import { StatusStamp } from '#/components/ui/StatusStamp.tsx'
-import { DISTRICTS } from '#/lib/districts.ts'
+import { DISTRICTS, parseSiteId } from '#/lib/districts.ts'
 import { GLITCH_STATUSES, STATUS_META, type GlitchStatus } from '#/lib/glitch.ts'
 import { deleteEcho, deleteGlitch, getGlitch, setGlitchStatus } from '#/lib/glitches.functions.ts'
 import { useHotkeys } from '#/lib/useHotkeys.ts'
@@ -51,6 +51,7 @@ function GlitchPage() {
   const [error, setError] = useState<string | null>(null)
   const isCommander = guardian.role === 'commander'
   const district = DISTRICTS[glitch.district]
+  const site = parseSiteId(glitch.siteId)
 
   // J/K walk through the board in the same order as the list.
   const index = all.findIndex((g) => g.glitchId === glitch.glitchId)
@@ -105,14 +106,20 @@ function GlitchPage() {
             {glitch.glitchId}
           </h1>
           <p className="text-3xl leading-tight text-phos">{glitch.description}</p>
+          {glitch.stagedBy && (
+            <p className="border-2 border-amber px-3 py-1 text-xl text-amber">
+              ◆ STAGED BY {glitch.stagedBy}. DEFENDERS SEE THIS AS A REAL GLITCH.
+            </p>
+          )}
         </div>
         <figure>
-          <div className="inset bg-edge p-1">
+          <Link to="/districts/$districtId" params={{ districtId: glitch.district }} search={site ? { site: site.type } : {}} className="inset block bg-edge p-1 hover:outline hover:outline-2 hover:outline-amber" aria-label={`Zoom into ${district.name}`}>
             <DistrictMap glitches={all} highlight={glitch.district} focusGlitchId={glitch.glitchId} compact />
-          </div>
+          </Link>
           <figcaption className="readout mt-3 px-3 py-1.5 text-xl leading-tight">
-            <span className="text-2xl uppercase">{district.name}</span>
+            <span className="text-2xl uppercase">{district.name}{site ? ` · ${district.sites[site.type]}` : ''}</span>
             <span className="block text-[#c98a1e]">{district.lore}</span>
+            <span className="block text-base text-[#c98a1e]">Click the map to zoom into the district ▸</span>
           </figcaption>
         </figure>
       </div>

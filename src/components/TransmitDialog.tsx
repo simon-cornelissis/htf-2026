@@ -1,13 +1,13 @@
 import { getRouteApi, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { DistrictMap } from '#/components/DistrictMap.tsx'
-import { DISTRICTS, type DistrictId } from '#/lib/districts.ts'
+import { DISTRICTS, parseSiteId, siteName, type DistrictId } from '#/lib/districts.ts'
 import { reportEcho } from '#/lib/glitches.functions.ts'
 
 const MAX = 500
 const authed = getRouteApi('/_authed')
 
-export type TransmitTarget = { glitchId?: string; district?: DistrictId }
+export type TransmitTarget = { glitchId?: string; district?: DistrictId; siteId?: string }
 
 /**
  * Report an echo. Without a target glitch it opens a new glitch in the
@@ -25,6 +25,7 @@ export function TransmitDialog({
   const glitches = authed.useLoaderData()
   const [text, setText] = useState('')
   const [district, setDistrict] = useState<DistrictId | undefined>()
+  const [site, setSite] = useState<string | undefined>()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -34,6 +35,7 @@ export function TransmitDialog({
     if (target && !dialog.open) {
       setText('')
       setDistrict(target.district)
+      setSite(target.siteId)
       setError(null)
       dialog.showModal()
     } else if (!target && dialog.open) {
@@ -55,7 +57,7 @@ export function TransmitDialog({
     }
     setPending(true)
     try {
-      const { glitchId } = await reportEcho({ data: { description: text, glitchId: forGlitch, district } })
+      const { glitchId } = await reportEcho({ data: { description: text, glitchId: forGlitch, district, siteId: site && parseSiteId(site)?.district === district ? site : undefined } })
       onClose()
       await router.invalidate()
       await router.navigate({ to: '/glitches/$glitchId', params: { glitchId }, search: { fresh: true } })
@@ -91,10 +93,10 @@ export function TransmitDialog({
           <fieldset className="mb-4">
             <legend className="mb-2 flex w-full items-center justify-between gap-3">
               <span className="stamp text-xs">1. Where? Tap a district</span>
-              <span className="readout px-2 text-xl leading-tight uppercase">{district ? DISTRICTS[district].name : '-- none --'}</span>
+              <span className="readout px-2 text-xl leading-tight uppercase">{district ? DISTRICTS[district].name : '-- none --'}{site ? ` · ${siteName(site)}` : ''}</span>
             </legend>
             <div className="inset mx-auto max-w-[480px] bg-edge p-1">
-              <DistrictMap glitches={glitches} selected={district} onSelect={(id) => { setDistrict(id); setError(null) }} compact />
+              <DistrictMap glitches={glitches} selected={district} onSelect={(id) => { setDistrict(id); setSite(undefined); setError(null) }} compact />
             </div>
           </fieldset>
         )}

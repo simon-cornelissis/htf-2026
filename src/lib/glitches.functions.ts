@@ -8,19 +8,22 @@ import {
   type GlitchStatus,
   type GlitchSummary,
 } from '#/lib/glitch.ts'
-import { isDistrictId, type DistrictId } from '#/lib/districts.ts'
+import { isDistrictId, parseSiteId, type DistrictId } from '#/lib/districts.ts'
 import { requireCommander, requireGuardian } from '#/lib/session.ts'
+import { executeDueOperations, nextId, stagedGlitches } from '#/lib/world.ts'
 
 const MAX_DESCRIPTION = 500
 
 export const getGlitches = createServerFn({ method: 'GET' }).handler(
   async (): Promise<GlitchSummary[]> => {
-    requireGuardian()
-    return db
+    const guardian = requireGuardian()
+    executeDueOperations()
+    const rows = db
       .select({
         glitchId: glitches.glitchId,
         status: glitches.status,
         district: glitches.district,
+        siteId: glitches.siteId,
         description: glitches.description,
         timestamp: glitches.timestamp,
         echoCount: sql<number>`count(${echoes.echoId})`,
@@ -31,13 +34,18 @@ export const getGlitches = createServerFn({ method: 'GET' }).handler(
       .groupBy(glitches.glitchId)
       .orderBy(desc(glitches.timestamp))
       .all()
+    // Staged glitches look real to defenders. Only commanders learn which ones were planted.
+    if (guardian.role !== 'commander') return rows
+    const staged = stagedGlitches()
+    return rows.map((r) => ({ ...r, stagedBy: staged.get(r.glitchId) ?? null }))
   },
 )
 
 export const getGlitch = createServerFn({ method: 'GET' })
   .validator((glitchId: string) => String(glitchId))
   .handler(async ({ data: glitchId }): Promise<GlitchDetail | null> => {
-    requireGuardian()
+    const guardian = requireGuardian()
+    executeDueOperations()
     const glitch = db
       .select()
       .from(glitches)
@@ -58,24 +66,16 @@ export const getGlitch = createServerFn({ method: 'GET' })
       .where(eq(echoes.glitchId, glitchId))
       .orderBy(asc(echoes.timestamp))
       .all()
-    return { ...glitch, echoes: rows }
+    const stagedBy = guardian.role === 'commander' ? (stagedGlitches().get(glitchId) ?? null) : undefined
+    return { ...glitch, echoes: rows, stagedBy }
   })
-
-/** Next id like GL-0143, from the highest existing number. */
-function nextId(prefix: 'GL' | 'EC', ids: string[]): string {
-  const highest = ids.reduce((top, id) => {
-    const n = Number(id.split('-')[1])
-    return Number.isFinite(n) && n > top ? n : top
-  }, 0)
-  return `${prefix}-${String(highest + 1).padStart(4, '0')}`
-}
 
 /**
  * Report an echo. Without a glitchId, every echo opens a new glitch (LEAKED);
  * with one, it adds an update to that glitch.
  */
 export const reportEcho = createServerFn({ method: 'POST' })
-  .validator((input: { description: string; glitchId?: string; district?: DistrictId }) => {
+  .validator((input: { description: string; glitchId?: string; district?: DistrictId; siteId?: string }) => {
     const description = String(input.description ?? '').trim()
     if (description.length < 3) throw new Error('Describe what you saw, at least a few words.')
     if (description.length > MAX_DESCRIPTION) {
@@ -83,7 +83,9 @@ export const reportEcho = createServerFn({ method: 'POST' })
     }
     const glitchId = input.glitchId ? String(input.glitchId) : undefined
     if (!glitchId && !isDistrictId(input.district)) throw new Error('Pick the district where you saw it.')
-    return { description, glitchId, district: input.district }
+    const site = parseSiteId(input.siteId)
+    if (input.siteId && (!site || site.district !== input.district)) throw new Error('That site isn’t in this district.')
+    return { description, glitchId, district: input.district, siteId: site ? input.siteId! : null }
   })
   .handler(async ({ data }): Promise<{ glitchId: string; echoId: string }> => {
     const guardian = requireGuardian()
@@ -97,7 +99,7 @@ export const reportEcho = createServerFn({ method: 'POST' })
       } else {
         const ids = tx.select({ id: glitches.glitchId }).from(glitches).all().map((r) => r.id)
         glitchId = nextId('GL', ids)
-        tx.insert(glitches).values({ glitchId, status: 'LEAKED', district: data.district!, description: data.description, timestamp }).run()
+        tx.insert(glitches).values({ glitchId, status: 'LEAKED', district: data.district!, siteId: data.siteId, description: data.description, timestamp }).run()
       }
       const echoIds = tx.select({ id: echoes.echoId }).from(echoes).all().map((r) => r.id)
       const echoId = nextId('EC', echoIds)

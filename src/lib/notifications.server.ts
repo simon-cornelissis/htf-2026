@@ -6,7 +6,7 @@ import { guardians, notificationPreferences, notifications, pushSubscriptions } 
 
 export type CriticalAlert = {
   eventKey: string
-  kind: 'CRITICAL_REPORT' | 'BOMB_ARMED' | 'BOMB_DETONATED'
+  kind: 'CRITICAL_REPORT' | 'BOMB_ARMED' | 'BOMB_DETONATED' | 'SENSOR_ANOMALY'
   title: string
   body: string
   href: string

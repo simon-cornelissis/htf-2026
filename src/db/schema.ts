@@ -99,7 +99,7 @@ export const notifications = sqliteTable(
       .notNull()
       .references(() => guardians.guardianId, { onDelete: 'cascade' }),
     eventKey: text('event_key').notNull(),
-    kind: text('kind', { enum: ['CRITICAL_REPORT', 'BOMB_ARMED', 'BOMB_DETONATED'] }).notNull(),
+    kind: text('kind', { enum: ['CRITICAL_REPORT', 'BOMB_ARMED', 'BOMB_DETONATED', 'SENSOR_ANOMALY'] }).notNull(),
     title: text('title').notNull(),
     body: text('body').notNull(),
     href: text('href').notNull(),

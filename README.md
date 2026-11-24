@@ -44,7 +44,23 @@ configure a Twilio account and sender number. Set `APP_BASE_URL` to the public
 app URL so email links open the right incident.
 
 After updating an existing database, run `npm run db:push` to create the new
-photo and notification tables.
+photo, notification and sensor-reading tables.
+
+### Predictive sensor monitoring
+
+The shared MCP server and CUSTODIAN expose `get_sensor_status` and the
+commander-only `ingest_sensor_reading` tool. Submit real readings with a sensor
+id, district, metric (`data_stock` or `magic_reserve`) and non-negative value.
+When the same sensor's readings show a drop of at least 40% within five minutes,
+the server creates one severity-4 `LEAKED` glitch, records the detector decision
+in the audit log and sends a critical alert. Further readings link to the
+existing open glitch instead of creating duplicates. A fixed glitch can be
+followed by a new anomaly later.
+
+The detector is deterministic threshold-based monitoring, not a trained
+forecasting model. MCP sensor ingestion requires commander clearance; an
+integration should use a dedicated commander token and send measurements from
+its trusted sensor source.
 
 ## Beoordeling
 > Hoe wij beoordelen wordt voor de start van de hackathon met alle studenten gedeeld, zodat dit meteen duidelijk is voor iedereen.

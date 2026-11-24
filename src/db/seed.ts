@@ -1,5 +1,16 @@
 import { db } from './index.ts'
-import { echoes, glitches, guardians, operations, sessions } from './schema.ts'
+import {
+  apiTokens,
+  auditLog,
+  caseEntries,
+  echoes,
+  glitches,
+  guardians,
+  operations,
+  persons,
+  sensorReadings,
+  sessions,
+} from './schema.ts'
 import { hashPassword } from '../lib/password.ts'
 
 /** Demo password for every seeded guardian. */
@@ -48,13 +59,18 @@ const operationRows: (typeof operations.$inferInsert)[] = [
   { operationId: 'OP-0002', district: 'greenhold', siteId: 'greenhold:school', type: 'evacuation', coverStory: 'Evacuation sirens at Greenhold Commons School sounded with no operator present', scheduledFor: minutes(45), createdAt: minutes(-10), plannerId: 'GD-001', status: 'PLANNED' },
 ]
 
-// Wipe and refill so the seed can be re-run safely.
+// Clear all persisted world state in foreign-key-safe order before reseeding.
 db.transaction((tx) => {
   tx.delete(sessions).run()
+  tx.delete(apiTokens).run()
   tx.delete(operations).run()
   tx.delete(echoes).run()
+  tx.delete(caseEntries).run()
   tx.delete(glitches).run()
+  tx.delete(persons).run()
   tx.delete(guardians).run()
+  tx.delete(auditLog).run()
+  tx.delete(sensorReadings).run()
   tx.insert(guardians).values(guardianRows).run()
   tx.insert(glitches).values(glitchRows).run()
   tx.insert(echoes).values(echoRows).run()

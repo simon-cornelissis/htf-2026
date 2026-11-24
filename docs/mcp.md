@@ -1,6 +1,6 @@
 # MCP server: let Claude work the terminal
 
-Guardians of the Grid has a built-in [Model Context Protocol](https://modelcontextprotocol.io) server. Connect Claude Code, Claude Desktop or any other MCP client, and Claude can do what you can do in the app: read the board, brief you on the world, report echoes, defuse devices and, if you're a commander, stage false flag operations.
+Guardians of the Grid has a built-in [Model Context Protocol](https://modelcontextprotocol.io) server. Connect Claude Code, Claude Desktop, GitHub Copilot in VS Code or any other MCP client, and it can do what you can do in the app: read the board, brief you on the world, report echoes, defuse devices and, if you're a commander, stage false flag operations.
 
 Claude always acts **as you**, with **your role's permissions**. It goes through the same server functions and role checks as the UI, so nothing is possible over MCP that isn't possible in the app.
 
@@ -36,6 +36,15 @@ export ACHRONA_MCP_TOKEN=achrona_pat_...   # PowerShell: $env:ACHRONA_MCP_TOKEN 
   }
 }
 ```
+
+**GitHub Copilot in VS Code**: the same project config works with Copilot's [workspace MCP configuration](https://code.visualstudio.com/docs/agents/reference/mcp-configuration). In PowerShell, from the repository root, copy the example and set the token:
+
+```powershell
+Copy-Item .mcp.json.example .mcp.json
+$env:ACHRONA_MCP_TOKEN = "achrona_pat_..."
+```
+
+Fully quit VS Code, then launch it from that PowerShell window with `code .` so Copilot inherits the environment variable. In Copilot Chat, select the Copilot session target and enable the `achrona` MCP server if prompted. Try a read-only tool such as `whoami` or `get_world` first. The server's write and attack tools act immediately when invoked; they do not use CUSTODIAN's in-chat approval cards.
 
 **Other clients**: point them at `http://localhost:3000/mcp` (Streamable HTTP) and send the header `Authorization: Bearer <token>`. The MCP access page shows both snippets with your token filled in.
 

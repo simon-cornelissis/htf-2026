@@ -17,9 +17,11 @@ Om op te starten kan je volgende commando's gebruiken.
 
 ```bash
 npm install
-npm run db:setup   # create tables + seed demo data
+npm run db:setup   # create tables + reset to demo data
 npm run dev
 ```
+
+> `npm run db:seed` clears persisted world data, including person-of-interest case files, before inserting the demo data. Persons of interest are recreated with their starting state when the world next loads.
 
 > **Node 24 vereist** (zie `.node-version`). Op Node 22.12 crasht `better-sqlite3` (segfault).
 

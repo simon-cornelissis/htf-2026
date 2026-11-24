@@ -227,7 +227,7 @@ export function CityPlan({
             tabIndex={0}
             aria-pressed={isSelected}
             aria-label={`${SITE_META[type].label}: ${name}${open ? ', incident reported' : ''}`}
-            className="cursor-pointer outline-none [&:focus-visible_.plate]:stroke-[#ffb22e]"
+            className="cursor-pointer outline-none [&:focus-visible_.plate]:stroke-[#ffb22e] [&:hover_.plate]:stroke-[#ffb22e]"
             onClick={() => onSelect(type)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {

@@ -8,7 +8,7 @@ const STYLE: Record<GlitchStatus, { lamp?: 'red' | 'amber' | 'green'; text: stri
   FIXED: { text: 'text-phos-dim' },
 }
 
-/** Status as an indicator lamp with a pixel label, e.g. ● LEAKED. */
+/** Status as an indicator lamp with a label, e.g. ● LEAKED. VT323, so it stays readable in dense lists. */
 export function StatusStamp({
   status,
   size = 'sm',
@@ -18,7 +18,7 @@ export function StatusStamp({
 }) {
   const s = STYLE[status]
   return (
-    <span className={`inline-flex items-center gap-2 font-pixel whitespace-nowrap uppercase ${s.text} ${size === 'lg' ? 'text-lg' : 'text-xs'}`} title={STATUS_META[status].hint}>
+    <span className={`inline-flex items-center gap-2 font-mono leading-none whitespace-nowrap uppercase ${s.text} ${size === 'lg' ? 'text-3xl' : 'text-xl'}`} title={STATUS_META[status].hint}>
       <span
         aria-hidden="true"
         data-on={s.lamp}

@@ -50,7 +50,7 @@ export function Tip({
             ref={bubble}
             id={id}
             role="tooltip"
-            className="pointer-events-none fixed z-[200] max-w-xs border-2 border-amber bg-[#0b0703] px-3 py-2 text-lg leading-tight text-amber shadow-[4px_4px_0_rgb(0_0_0/0.6)]"
+            className="pointer-events-none fixed z-[200] max-w-[min(20rem,calc(100vw-16px))] border-2 border-amber bg-[#0b0703] px-3 py-2 text-xl leading-tight text-[#ffd27a] shadow-[4px_4px_0_rgb(0_0_0/0.6)]"
             style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}
           >
             {text}
@@ -68,7 +68,7 @@ export function InfoTip({ text, label = 'More info' }: { text: ReactNode; label?
       <button
         type="button"
         aria-label={label}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-stamp/70 font-pixel text-[10px] leading-none text-stamp hover:border-amber hover:text-amber"
+        className="inline-flex size-6 shrink-0 cursor-help items-center justify-center rounded-full border-2 border-stamp/60 font-mono text-lg leading-none text-stamp hover:border-amber hover:text-amber"
       >
         ?
       </button>

@@ -29,6 +29,8 @@
   --color-lamp: var(--lamp);
   --color-sand: var(--sand);
   --color-dirt: var(--dirt);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
 
   --animate-ticker: ticker 80s linear infinite;
   --animate-blink: blink 1s steps(1) infinite;
@@ -45,12 +47,15 @@
   --phos: #7dff6a;
   --phos-mid: #45d43c;
   /* Meta text on the CRT, still >4.5:1 on --screen. */
-  --phos-dim: #2fa02a;
+  --phos-dim: #3cb836;
   --amber: #ffb22e;
   --stamp: #e9cf66;
   --lamp: #e3261a;
   --sand: #a08a58;
   --dirt: #5a4a2c;
+  /* Readable text on metal plates: primary and secondary. */
+  --ink: #f1ebc8;
+  --ink-dim: #d9d3ab;
   color-scheme: dark;
 }
 
@@ -58,6 +63,10 @@
 :root {
   --noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.4 -0.45'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   --scratches: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='0.004 0.35' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.9  0 0 0 2.2 -1.25'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
+  /* Much fainter grime for plates and buttons, so text on them stays calm. */
+  --noise-soft: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.45 -0.16'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --scratches-soft: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='0.004 0.35' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.9  0 0 0 0.6 -0.38'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
+  --dither-soft: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4' shape-rendering='crispEdges'><rect width='2' height='2' fill='black' fill-opacity='0.12'/><rect x='2' y='2' width='2' height='2' fill='black' fill-opacity='0.12'/></svg>");
   /* 2x2 checkerboard for dithered shading. */
   --dither: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4' shape-rendering='crispEdges'><rect width='2' height='2' fill='black' fill-opacity='0.35'/><rect x='2' y='2' width='2' height='2' fill='black' fill-opacity='0.35'/></svg>");
 }
@@ -142,14 +151,15 @@ body {
     text-transform: uppercase;
     color: var(--stamp);
     text-shadow: 1px 1px 0 var(--edge), -1px -1px 0 rgb(255 255 255 / 0.12);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
   }
 
   /* Riveted gunmetal plate with a raised bevel. */
   .metal {
     position: relative;
     background-color: var(--metal);
-    background-image: var(--scratches), var(--noise), var(--dither);
+    background-image: var(--scratches-soft), var(--noise-soft), var(--dither-soft);
     background-size: 240px 240px, 192px 192px, 4px 4px;
     box-shadow:
       inset 3px 3px 0 var(--metal-hi),
@@ -190,7 +200,7 @@ body {
       inset 0 0 40px rgb(0 0 0 / 0.9),
       0 0 0 5px var(--metal-lo),
       0 0 0 7px var(--edge);
-    text-shadow: 0 0 5px rgb(93 230 80 / 0.55);
+    text-shadow: 0 0 4px rgb(93 230 80 / 0.4);
   }
   .crt::after {
     content: "";
@@ -198,8 +208,8 @@ body {
     inset: 0;
     pointer-events: none;
     background:
-      repeating-linear-gradient(to bottom, transparent 0 2px, rgb(0 0 0 / 0.32) 2px 3px),
-      radial-gradient(ellipse at 30% 15%, rgb(255 255 255 / 0.07), transparent 45%);
+      repeating-linear-gradient(to bottom, transparent 0 2px, rgb(0 0 0 / 0.16) 2px 3px),
+      radial-gradient(ellipse at 30% 15%, rgb(255 255 255 / 0.05), transparent 45%);
     border-radius: inherit;
   }
 
@@ -207,10 +217,12 @@ body {
   .btn {
     font-family: var(--font-pixel);
     text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
     color: var(--stamp);
     text-shadow: 1px 1px 0 var(--edge);
     background-color: #5b5a46;
-    background-image: var(--noise), var(--dither);
+    background-image: var(--noise-soft), var(--dither-soft);
     background-size: 192px 192px, 4px 4px;
     box-shadow:
       inset 3px 3px 0 #a3a07c,
@@ -221,6 +233,9 @@ body {
   .btn:hover {
     color: #fff3b0;
   }
+  .btn {
+    cursor: pointer;
+  }
   .btn:active,
   .btn[aria-pressed="true"] {
     transform: translate(2px, 2px);
@@ -228,6 +243,57 @@ body {
       inset 3px 3px 0 var(--metal-lo),
       inset -2px -2px 0 #a3a07c,
       0 0 0 2px var(--edge);
+  }
+  /* A pressed toggle reads as "selected": darker face, amber outline, bright label. */
+  .btn[aria-pressed="true"] {
+    color: #fff3b0;
+    background-color: #3c3b2d;
+    box-shadow:
+      inset 3px 3px 0 var(--metal-lo),
+      inset -2px -2px 0 #a3a07c,
+      0 0 0 2px var(--edge),
+      0 0 0 4px var(--amber);
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.5;
+    transform: none;
+  }
+
+  /* The one main action of a panel: amber face, dark label. Use with .btn. */
+  .btn-primary {
+    color: #1d1405;
+    text-shadow: 1px 1px 0 rgb(255 240 200 / 0.45);
+    background-color: #e0a12c;
+    box-shadow:
+      inset 3px 3px 0 #ffe09a,
+      inset -3px -3px 0 #8a5608,
+      0 0 0 2px var(--edge),
+      3px 3px 0 2px rgb(0 0 0 / 0.5);
+  }
+  .btn-primary:hover {
+    color: #000;
+    background-color: #f0b23a;
+  }
+  .btn-primary:active,
+  .btn-primary[aria-pressed="true"] {
+    color: #1d1405;
+    background-color: #c98a1e;
+    box-shadow:
+      inset 3px 3px 0 #8a5608,
+      inset -2px -2px 0 #ffe09a,
+      0 0 0 2px var(--edge);
+  }
+
+  /* Small field label: pixel caps, readable size. */
+  .label {
+    font-family: var(--font-pixel);
+    font-size: 0.875rem;
+    line-height: 1.2;
+    text-transform: uppercase;
+    color: var(--stamp);
+    text-shadow: 1px 1px 0 var(--edge);
   }
 
   /* Round indicator lamp. data-on toggles the glow. */

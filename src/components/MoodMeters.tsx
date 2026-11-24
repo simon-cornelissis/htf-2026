@@ -47,9 +47,9 @@ export function MoodMeters({ mood, baseline, size = 'md' }: { mood: Mood; baseli
         const delta = baseline ? value - baseline[key] : 0
         const worse = goodHigh ? delta < 0 : delta > 0
         return (
-          <div key={key} className="grid grid-cols-[7.5rem_1fr_auto] items-center gap-3">
+          <div key={key} className={`grid items-center gap-3 ${size === 'sm' ? 'grid-cols-[6.5rem_1fr_auto]' : 'grid-cols-[7.5rem_1fr_auto]'}`}>
             <dt className="flex items-center gap-2">
-              <span className="stamp text-[11px]">{label}</span>
+              <span className="text-xl leading-none text-ink uppercase">{label}</span>
               <InfoTip label={`What is ${label.toLowerCase()}?`} text={info} />
             </dt>
             <dd className="inset flex gap-[2px] bg-[#0b0703] p-1" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}>
@@ -61,7 +61,7 @@ export function MoodMeters({ mood, baseline, size = 'md' }: { mood: Mood; baseli
                 />
               ))}
             </dd>
-            <dd className="readout flex min-w-[5.5rem] items-baseline justify-end gap-1.5 px-2 text-2xl leading-none">
+            <dd className="readout flex min-w-[4.5rem] items-baseline justify-end gap-1.5 px-2 text-2xl leading-none">
               {value}
               {baseline && delta !== 0 && (
                 <span className={`text-base ${worse ? 'text-[#ff6a4e]' : 'text-[#9dff86]'}`} title="Change from this district's normal">

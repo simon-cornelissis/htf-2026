@@ -53,7 +53,7 @@ export function DistrictMap({
   onZoom,
 }: {
   glitches: Glitch[]
-  /** Interactive mode: the district currently filtered on. */
+  /** Pick mode (e.g. the transmit dialog): the district currently picked. */
   selected?: DistrictId
   onSelect?: (id: DistrictId | undefined) => void
   onHover?: (id: DistrictId | null) => void
@@ -64,7 +64,7 @@ export function DistrictMap({
   /** What the district colouring shows: glitch threat or resident fear. */
   overlay?: 'glitches' | 'mood'
   moods?: Record<DistrictId, DistrictMood>
-  /** Double-click (or Shift+Enter) on a district zooms into it. */
+  /** Zoom mode (world map): a click, Enter or Space on a district enters it. */
   onZoom?: (id: DistrictId) => void
 }) {
   const navigate = useNavigate()
@@ -77,8 +77,13 @@ export function DistrictMap({
     return map
   }, [glitches, focusGlitchId])
 
-  const interactive = Boolean(onSelect)
+  const zoomMode = Boolean(onZoom)
+  const interactive = zoomMode || Boolean(onSelect)
   const pointAt = selected ?? highlight
+  const activate = (id: DistrictId) => {
+    if (onZoom) onZoom(id)
+    else onSelect?.(selected === id ? undefined : id)
+  }
   const ref = (name: string) => `url(#${uid}${name})`
 
   return (
@@ -86,7 +91,13 @@ export function DistrictMap({
       viewBox="0 0 1000 640"
       className="block h-auto w-full select-none"
       role={interactive ? 'group' : 'img'}
-      aria-label={interactive ? 'Map of Achrona. Pick a district to filter glitches.' : `Map of Achrona, ${highlight ? DISTRICTS[highlight].name : ''} marked`}
+      aria-label={
+        zoomMode
+          ? 'Map of Achrona. Pick a district to enter it.'
+          : interactive
+            ? 'Map of Achrona. Pick a district.'
+            : `Map of Achrona, ${highlight ? DISTRICTS[highlight].name : ''} marked`
+      }
     >
       <defs>
         <filter id={`${uid}erode`} x="-5%" y="-5%" width="110%" height="110%">
@@ -140,7 +151,8 @@ export function DistrictMap({
         {DISTRICT_IDS.map((id) => {
           const d = DISTRICTS[id]
           const s = stats[id]
-          const dim = pointAt && pointAt !== id
+          // In zoom mode nothing is dimmed: every district is a door.
+          const dim = !zoomMode && pointAt && pointAt !== id
           return (
             <g key={id} opacity={dim ? 0.55 : 1}>
               <polygon points={d.points} fill={ref('dither')} stroke="#2a2214" strokeWidth="4" strokeLinejoin="bevel" />
@@ -189,11 +201,11 @@ export function DistrictMap({
           points={DISTRICTS[pointAt].points}
           fill="none"
           stroke="#ffb22e"
-          strokeWidth="5"
+          strokeWidth={zoomMode ? 3 : 5}
           strokeDasharray="16 8"
+          strokeOpacity={zoomMode ? 0.7 : 1}
           shapeRendering="crispEdges"
           pointerEvents="none"
-          className="animate-flicker"
         />
       )}
 
@@ -203,26 +215,26 @@ export function DistrictMap({
         const s = stats[id]
         const [cx, cy] = d.center
         const isSelected = selected === id
-        const label = `${d.name}: ${s.open} open ${s.open === 1 ? 'glitch' : 'glitches'}${s.leaked ? `, ${s.leaked} leaked` : ''}`
+        const summary = `${s.open} open ${s.open === 1 ? 'glitch' : 'glitches'}${s.leaked ? `, ${s.leaked} leaked` : ''}`
         return (
           <g
             key={id}
-            role={interactive ? 'button' : undefined}
+            role={zoomMode ? 'link' : interactive ? 'button' : undefined}
             tabIndex={interactive ? 0 : undefined}
-            aria-label={interactive ? label : undefined}
-            aria-pressed={interactive ? isSelected : undefined}
-            className={interactive ? 'cursor-pointer outline-none [&:focus-visible>polygon]:stroke-[#ffb22e] [&:hover>polygon]:fill-[rgb(255_240_190/0.08)]' : undefined}
-            onClick={interactive ? () => onSelect?.(isSelected ? undefined : id) : undefined}
-            onDoubleClick={onZoom ? () => onZoom(id) : undefined}
+            aria-label={zoomMode ? `Enter ${d.name}: ${summary}` : interactive ? `${d.name}: ${summary}` : undefined}
+            aria-pressed={interactive && !zoomMode ? isSelected : undefined}
+            className={
+              interactive
+                ? 'group/d cursor-pointer outline-none [&:focus-visible>.hit]:stroke-[#ffb22e] [&:hover>.hit]:stroke-[#ffb22e] [&>.hit]:transition-[fill] [&:hover>.hit]:fill-[rgb(255_240_190/0.14)] [&:focus-visible>.hit]:fill-[rgb(255_240_190/0.14)]'
+                : undefined
+            }
+            onClick={interactive ? () => activate(id) : undefined}
             onKeyDown={
               interactive
                 ? (e) => {
-                    if (e.key === 'Enter' && e.shiftKey && onZoom) {
+                    if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      onZoom(id)
-                    } else if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      onSelect?.(isSelected ? undefined : id)
+                      activate(id)
                     }
                   }
                 : undefined
@@ -232,7 +244,7 @@ export function DistrictMap({
             onFocus={() => onHover?.(id)}
             onBlur={() => onHover?.(null)}
           >
-            <polygon points={d.points} fill="transparent" stroke="transparent" strokeWidth="4" shapeRendering="crispEdges" />
+            <polygon className="hit" points={d.points} fill="transparent" stroke="transparent" strokeWidth="6" strokeLinejoin="bevel" shapeRendering="crispEdges" />
             <text
               x={cx}
               y={cy + 8}
@@ -275,6 +287,25 @@ export function DistrictMap({
               >
                 {s.open ? `${s.open} OPEN` : 'STABLE'}
               </text>
+            )}
+            {zoomMode && (
+              <g
+                aria-hidden="true"
+                pointerEvents="none"
+                className="opacity-0 group-hover/d:opacity-100 group-focus-visible/d:opacity-100"
+                shapeRendering="crispEdges"
+              >
+                <rect x={cx - 62} y={cy + 46} width="124" height="30" fill="#140f07" stroke="#ffb22e" strokeWidth="3" />
+                <text
+                  x={cx}
+                  y={cy + 68}
+                  textAnchor="middle"
+                  fill="#ffb22e"
+                  style={{ fontFamily: 'var(--font-pixel)', fontWeight: 700, fontSize: 18, textTransform: 'uppercase' }}
+                >
+                  Enter ▸
+                </text>
+              </g>
             )}
           </g>
         )

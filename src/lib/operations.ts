@@ -1,12 +1,13 @@
 import { DISTRICT_IDS, DISTRICTS, parseSiteId, type DistrictId, type Mood, type SiteType } from './districts.ts'
 import type { GlitchStatus } from './glitch.ts'
+import type { BombOutcome } from './bomb.ts'
 
 /**
  * False flag operations: incidents a commander stages and blames on the Desync.
  * When one goes off it becomes an ordinary-looking glitch for defenders,
  * and the district's residents get scared.
  */
-export const OPERATION_TYPES = ['blackout', 'sighting', 'supply', 'evacuation', 'echoes'] as const
+export const OPERATION_TYPES = ['blackout', 'sighting', 'supply', 'evacuation', 'echoes', 'bomb'] as const
 
 export type OperationType = (typeof OPERATION_TYPES)[number]
 
@@ -48,6 +49,18 @@ export const OPERATION_META: Record<
     effect: { happiness: -6, fear: 12, anxiety: 16 },
     cover: (site) => `Voices from last week replaying in the halls of ${site}`,
   },
+  bomb: {
+    name: 'Planted device',
+    summary: 'Hide a device at the site. When it goes off it arms a 3-minute fuse and every guardian is alerted. Whoever defuses it in time becomes a hero.',
+    effect: { happiness: -10, fear: 24, anxiety: 26 },
+    cover: (site) => `Unattended device ticking at ${site}, area cordoned off`,
+  },
+}
+
+/** What happens to residents once a planted device is resolved. */
+export const BOMB_OUTCOME_EFFECT: Record<BombOutcome, Mood> = {
+  DETONATED: { happiness: -30, fear: 40, anxiety: 35 },
+  DEFUSED: { happiness: 8, fear: -6, anxiety: -10 },
 }
 
 /** Crowded or vulnerable places amplify an operation. */
@@ -98,6 +111,9 @@ export type ExecutedOperation = {
   siteId: string
   type: OperationType
   scheduledFor: string
+  /** Bombs only: set once defused or detonated. */
+  outcome?: BombOutcome | null
+  resolvedAt?: string | null
 }
 
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)))
@@ -132,11 +148,23 @@ export function computeMoods(
   }
 
   for (const op of operations) {
-    const k = operationIntensity(op.scheduledFor, now)
+    // Resolved bombs swap their threat for the detonation (or relief) effect.
+    const resolved = op.type === 'bomb' && op.outcome && op.resolvedAt
+    const k = operationIntensity(resolved ? op.resolvedAt! : op.scheduledFor, now)
     if (k <= 0 || !out[op.district]) continue
     const site = parseSiteId(op.siteId)
     const factor = site ? SITE_IMPACT[site.type].factor : 1
-    const e = OPERATION_META[op.type].effect
+    const e = resolved ? BOMB_OUTCOME_EFFECT[op.outcome!] : OPERATION_META[op.type].effect
+    if (op.type === 'bomb') {
+      // A bomb is public news: everyone sees it, only commanders see who planted it.
+      const what = op.outcome === 'DETONATED' ? 'Device detonated' : op.outcome === 'DEFUSED' ? 'Device defused' : 'Armed device'
+      add(op.district, {
+        label: revealOperations ? `${op.operationId} ${what.toLowerCase()}` : what,
+        kind: revealOperations ? 'operation' : 'glitch',
+        effect: { happiness: e.happiness * k * factor, fear: e.fear * k * factor, anxiety: e.anxiety * k * factor },
+      })
+      continue
+    }
     const effect = {
       happiness: e.happiness * k * factor,
       fear: e.fear * k * factor,

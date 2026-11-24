@@ -1,8 +1,9 @@
 // Server-only: called from inside server function handlers.
-import { and, eq, isNotNull, lte } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, lte } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
 import { echoes, glitches, guardians, operations } from '#/db/schema.ts'
-import type { DistrictId } from '#/lib/districts.ts'
+import { FUSE_SECONDS, generatePuzzle } from '#/lib/bomb.ts'
+import { siteName, type DistrictId } from '#/lib/districts.ts'
 import { computeMoods, type DistrictMood } from '#/lib/operations.ts'
 
 /** Next id like GL-0143, from the highest existing number. */
@@ -30,6 +31,7 @@ function ensureRelay() {
  * Runs lazily on every read, so no background job is needed.
  */
 export function executeDueOperations(now = new Date()) {
+  detonateExpiredBombs(now)
   const due = db
     .select()
     .from(operations)
@@ -62,7 +64,54 @@ export function executeDueOperations(now = new Date()) {
           reportingGuardianId: RELAY_GUARDIAN.guardianId,
         })
         .run()
-      tx.update(operations).set({ status: 'EXECUTED', glitchId }).where(eq(operations.operationId, op.operationId)).run()
+      const bomb =
+        op.type === 'bomb'
+          ? {
+              fuseEndsAt: new Date(new Date(op.scheduledFor).getTime() + FUSE_SECONDS * 1000).toISOString(),
+              puzzle: JSON.stringify(generatePuzzle(Number(op.operationId.replace(/D/g, '')) * 7919 + Date.now() % 100000)),
+            }
+          : {}
+      tx.update(operations).set({ status: 'EXECUTED', glitchId, ...bomb }).where(eq(operations.operationId, op.operationId)).run()
+    }
+  })
+}
+
+/**
+ * Armed devices whose fuse ran out go off: the bomb is marked DETONATED and
+ * the civilian relay reports it on the glitch's log.
+ */
+export function detonateExpiredBombs(now = new Date()) {
+  const expired = db
+    .select()
+    .from(operations)
+    .where(
+      and(
+        eq(operations.type, 'bomb'),
+        eq(operations.status, 'EXECUTED'),
+        isNull(operations.outcome),
+        lte(operations.fuseEndsAt, now.toISOString()),
+      ),
+    )
+    .all()
+  if (expired.length === 0) return
+  ensureRelay()
+  db.transaction((tx) => {
+    for (const op of expired) {
+      tx.update(operations)
+        .set({ outcome: 'DETONATED', resolvedAt: op.fuseEndsAt })
+        .where(eq(operations.operationId, op.operationId))
+        .run()
+      if (!op.glitchId) continue
+      const echoIds = tx.select({ id: echoes.echoId }).from(echoes).all().map((r) => r.id)
+      tx.insert(echoes)
+        .values({
+          echoId: nextId('EC', echoIds),
+          glitchId: op.glitchId,
+          description: `The device at ${siteName(op.siteId) ?? 'the site'} detonated. Nobody reached it in time.`,
+          timestamp: op.fuseEndsAt!,
+          reportingGuardianId: RELAY_GUARDIAN.guardianId,
+        })
+        .run()
     }
   })
 }
@@ -89,6 +138,8 @@ export function loadMoods(revealOperations: boolean): Record<DistrictId, Distric
       siteId: operations.siteId,
       type: operations.type,
       scheduledFor: operations.scheduledFor,
+      outcome: operations.outcome,
+      resolvedAt: operations.resolvedAt,
     })
     .from(operations)
     .where(eq(operations.status, 'EXECUTED'))

@@ -70,7 +70,7 @@ function LoginPage() {
           </div>
 
           {/* The monitor */}
-          <div className="crt min-h-[22rem] p-6 text-[22px] leading-snug sm:p-8">
+          <div className="crt min-h-[22rem] p-5 text-[22px] leading-snug sm:p-8">
             <div className="text-phos-dim">
               {BOOT.map((line) => <div key={line}>{line}</div>)}
             </div>
@@ -79,8 +79,8 @@ function LoginPage() {
               IDENTIFY YOURSELF TO CONTINUE.
             </p>
 
-            <label className="mt-6 flex items-center gap-3">
-              <span className="w-40 shrink-0 text-phos-dim">&gt; CODENAME:</span>
+            <label className="mt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+              <span className="shrink-0 text-phos-dim sm:w-40">&gt; CODENAME:</span>
               <input
                 autoFocus
                 autoComplete="username"
@@ -90,8 +90,8 @@ function LoginPage() {
                 className="relative z-10 w-full border-b-2 border-phos-dim/60 bg-transparent text-phos uppercase caret-phos placeholder:text-phos-dim/70 focus:border-phos focus:outline-none"
               />
             </label>
-            <label className="mt-3 flex items-center gap-3">
-              <span className="w-40 shrink-0 text-phos-dim">&gt; PASSPHRASE:</span>
+            <label className="mt-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+              <span className="shrink-0 text-phos-dim sm:w-40">&gt; PASSPHRASE:</span>
               <input
                 type="password"
                 autoComplete="current-password"
@@ -108,15 +108,15 @@ function LoginPage() {
 
           {/* Controls */}
           <div className="flex flex-col gap-4">
-            <button type="submit" disabled={pending} className="btn flex flex-col items-center gap-2 px-3 py-4 text-sm disabled:opacity-60">
-              <span data-on="red" className="lamp size-7" aria-hidden="true" />
+            <button type="submit" disabled={pending} className="btn btn-primary flex flex-col items-center gap-2 px-3 py-4 text-sm">
+              <span data-on="red" className="lamp size-6" aria-hidden="true" />
               Enter grid
             </button>
 
             {import.meta.env.DEV && (
               <div className="inset bg-metal-lo p-3">
-                <p className="stamp mb-2 text-[10px] leading-snug">
-                  Demo · pass <span className="text-white">guest</span>
+                <p className="mb-2 text-xl leading-tight text-ink-dim uppercase">
+                  Demo · pass <span className="text-ink">guest</span>
                 </p>
                 <div className="flex flex-col gap-2">
                   {DEMO_CODENAMES.map((name) => (
@@ -124,7 +124,7 @@ function LoginPage() {
                       key={name}
                       type="button"
                       onClick={() => { setCodename(name); setPassword('guest'); setError(null) }}
-                      className="btn flex items-center justify-between px-2 py-1.5 text-[11px]"
+                      className="btn flex items-center justify-between px-2 py-1.5 text-sm"
                     >
                       {name}
                       <span data-on={name === 'COMMANDER' ? 'amber' : 'green'} className="lamp size-2" aria-hidden="true" />
@@ -136,7 +136,7 @@ function LoginPage() {
           </div>
         </div>
 
-        <Wires className="pointer-events-none absolute -bottom-12 left-16 hidden h-14 w-28 md:block" />
+        <Wires className="pointer-events-none absolute -bottom-10 left-16 hidden h-10 w-24 opacity-80 lg:block" />
       </form>
     </div>
   )

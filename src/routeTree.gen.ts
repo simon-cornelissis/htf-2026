@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedLeaderboardRouteImport } from './routes/_authed/leaderboard'
+import { Route as AuthedBombsGlitchIdRouteImport } from './routes/_authed/bombs.$glitchId'
 import { Route as AuthedDistrictsDistrictIdRouteImport } from './routes/_authed/districts.$districtId'
 import { Route as AuthedGlitchesGlitchIdRouteImport } from './routes/_authed/glitches.$glitchId'
 
@@ -29,6 +31,16 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedLeaderboardRoute = AuthedLeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedBombsGlitchIdRoute = AuthedBombsGlitchIdRouteImport.update({
+  id: '/bombs/$glitchId',
+  path: '/bombs/$glitchId',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedDistrictsDistrictIdRoute =
   AuthedDistrictsDistrictIdRouteImport.update({
     id: '/districts/$districtId',
@@ -44,12 +56,16 @@ const AuthedGlitchesGlitchIdRoute = AuthedGlitchesGlitchIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
+  '/leaderboard': typeof AuthedLeaderboardRoute
+  '/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/leaderboard': typeof AuthedLeaderboardRoute
   '/': typeof AuthedIndexRoute
+  '/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
 }
@@ -57,20 +73,36 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authed/leaderboard': typeof AuthedLeaderboardRoute
   '/_authed/': typeof AuthedIndexRoute
+  '/_authed/bombs/$glitchId': typeof AuthedBombsGlitchIdRoute
   '/_authed/districts/$districtId': typeof AuthedDistrictsDistrictIdRoute
   '/_authed/glitches/$glitchId': typeof AuthedGlitchesGlitchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/districts/$districtId' | '/glitches/$glitchId'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/leaderboard'
+    | '/bombs/$glitchId'
+    | '/districts/$districtId'
+    | '/glitches/$glitchId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/districts/$districtId' | '/glitches/$glitchId'
+  to:
+    | '/login'
+    | '/leaderboard'
+    | '/'
+    | '/bombs/$glitchId'
+    | '/districts/$districtId'
+    | '/glitches/$glitchId'
   id:
     | '__root__'
     | '/_authed'
     | '/login'
+    | '/_authed/leaderboard'
     | '/_authed/'
+    | '/_authed/bombs/$glitchId'
     | '/_authed/districts/$districtId'
     | '/_authed/glitches/$glitchId'
   fileRoutesById: FileRoutesById
@@ -103,6 +135,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/leaderboard': {
+      id: '/_authed/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof AuthedLeaderboardRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/bombs/$glitchId': {
+      id: '/_authed/bombs/$glitchId'
+      path: '/bombs/$glitchId'
+      fullPath: '/bombs/$glitchId'
+      preLoaderRoute: typeof AuthedBombsGlitchIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/districts/$districtId': {
       id: '/_authed/districts/$districtId'
       path: '/districts/$districtId'
@@ -121,13 +167,17 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedLeaderboardRoute: typeof AuthedLeaderboardRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
+  AuthedBombsGlitchIdRoute: typeof AuthedBombsGlitchIdRoute
   AuthedDistrictsDistrictIdRoute: typeof AuthedDistrictsDistrictIdRoute
   AuthedGlitchesGlitchIdRoute: typeof AuthedGlitchesGlitchIdRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedLeaderboardRoute: AuthedLeaderboardRoute,
   AuthedIndexRoute: AuthedIndexRoute,
+  AuthedBombsGlitchIdRoute: AuthedBombsGlitchIdRoute,
   AuthedDistrictsDistrictIdRoute: AuthedDistrictsDistrictIdRoute,
   AuthedGlitchesGlitchIdRoute: AuthedGlitchesGlitchIdRoute,
 }

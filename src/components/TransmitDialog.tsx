@@ -74,25 +74,25 @@ export function TransmitDialog({
     <dialog
       ref={ref}
       onClose={onClose}
-      className="metal rivets m-auto max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] p-0 text-phos-mid"
+      className="metal rivets m-auto max-h-[calc(100dvh-2rem)] w-[min(720px,calc(100vw-1.5rem))] overflow-y-auto p-0 text-phos-mid"
       aria-labelledby="transmit-title"
     >
       <div className="hazard h-3" aria-hidden="true" />
-      <form onSubmit={onSubmit} className="p-5 sm:p-7">
+      <form onSubmit={onSubmit} className="p-4 sm:p-7">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 id="transmit-title" className="stamp text-2xl font-bold">
             {forGlitch ? `Update ${forGlitch}` : 'Transmit echo'}
           </h2>
-          <span className="flex items-center gap-2" aria-hidden="true">
+          <span className="flex shrink-0 items-center gap-2" aria-hidden="true">
             <span data-on="red" className="lamp size-3 animate-blink" />
-            <span className="stamp text-[10px]">On air</span>
+            <span className="text-lg leading-none text-ink-dim uppercase">On air</span>
           </span>
         </div>
 
         {!forGlitch && (
           <fieldset className="mb-4">
-            <legend className="mb-2 flex w-full items-center justify-between gap-3">
-              <span className="stamp text-xs">1. Where? Tap a district</span>
+            <legend className="mb-2 flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <span className="label">1. Where? Tap a district</span>
               <span className="readout px-2 text-xl leading-tight uppercase">{district ? DISTRICTS[district].name : '-- none --'}{site ? ` · ${siteName(site)}` : ''}</span>
             </legend>
             <div className="inset mx-auto max-w-[480px] bg-edge p-1">
@@ -102,7 +102,7 @@ export function TransmitDialog({
         )}
 
         <label className="block">
-          <span className="stamp mb-2 block text-xs">{forGlitch ? 'What changed?' : '2. What did you witness?'}</span>
+          <span className="label mb-2 block">{forGlitch ? 'What changed?' : '2. What did you witness?'}</span>
           <div className="crt rounded-[10px] p-3">
             <textarea
               autoFocus={Boolean(forGlitch)}
@@ -117,19 +117,19 @@ export function TransmitDialog({
         </label>
 
         <div className="mt-2 flex items-start justify-between gap-4">
-          <span aria-live="polite" className="font-pixel text-xs text-[#ff7a5c] uppercase">{error && `✕ ${error}`}</span>
+          <span aria-live="polite" className="text-xl leading-tight text-[#ff8a6a]">{error && `✕ ${error}`}</span>
           <span className={`readout px-2 text-xl leading-tight ${remaining < 50 ? 'text-[#ff5a3a]' : ''}`}>{String(remaining).padStart(3, '0')}</span>
         </div>
 
-        <p className="mt-3 leading-tight text-[#d8d3a6]">
+        <p className="mt-3 text-xl leading-tight text-ink-dim">
           {forGlitch
             ? 'Your echo is added to this glitch’s log.'
             : 'A new echo is logged as a glitch and flagged as leaked until a commander assesses it.'}
         </p>
 
         <div className="mt-5 flex justify-end gap-4">
-          <button type="button" onClick={onClose} className="btn px-5 py-3 text-xs">Cancel</button>
-          <button type="submit" disabled={pending} className="btn flex items-center gap-3 px-6 py-3 text-sm disabled:opacity-60">
+          <button type="button" onClick={onClose} className="btn px-5 py-3 text-sm">Cancel</button>
+          <button type="submit" disabled={pending} className="btn btn-primary flex items-center gap-3 px-6 py-3 text-sm">
             <span data-on="red" className="lamp size-4" aria-hidden="true" />
             {pending ? 'Sending…' : 'Transmit'}
           </button>

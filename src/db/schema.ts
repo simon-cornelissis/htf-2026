@@ -1,8 +1,9 @@
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 // Relative import: drizzle-kit loads this file and doesn't resolve the `#/` alias.
 import { GLITCH_STATUSES, GUARDIAN_ROLES } from '../lib/glitch.ts'
 import { DISTRICT_IDS } from '../lib/districts.ts'
 import { OPERATION_STATUSES, OPERATION_TYPES } from '../lib/operations.ts'
+import { BOMB_OUTCOMES } from '../lib/bomb.ts'
 
 export const glitches = sqliteTable('glitches', {
   glitchId: text('glitch_id').primaryKey(),
@@ -61,4 +62,15 @@ export const operations = sqliteTable('operations', {
   status: text('status', { enum: OPERATION_STATUSES }).notNull(),
   /** The staged glitch it produced once executed. */
   glitchId: text('glitch_id').references(() => glitches.glitchId, { onDelete: 'set null' }),
+  // Bombs only.
+  /** ISO 8601. When the device goes off unless defused. */
+  fuseEndsAt: text('fuse_ends_at'),
+  /** BombPuzzle as JSON. Holds the solution: never send it to clients. */
+  puzzle: text('puzzle'),
+  outcome: text('outcome', { enum: BOMB_OUTCOMES }),
+  /** ISO 8601. When it was defused or detonated. */
+  resolvedAt: text('resolved_at'),
+  defusedBy: text('defused_by').references(() => guardians.guardianId),
+  /** Hero points awarded for the defusal. */
+  defusePoints: integer('defuse_points'),
 })

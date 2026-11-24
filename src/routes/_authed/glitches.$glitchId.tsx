@@ -1,5 +1,5 @@
 import { createFileRoute, getRouteApi, Link, notFound, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DistrictMap } from '#/components/DistrictMap.tsx'
 import { Kbd, useTransmit } from '#/components/layout/Shell.tsx'
 import { HoldButton } from '#/components/ui/HoldButton.tsx'
@@ -9,15 +9,17 @@ import { DISTRICTS, parseSiteId } from '#/lib/districts.ts'
 import { GLITCH_STATUSES, STATUS_META, type GlitchStatus } from '#/lib/glitch.ts'
 import { deleteEcho, deleteGlitch, getGlitch, setGlitchStatus } from '#/lib/glitches.functions.ts'
 import { useHotkeys } from '#/lib/useHotkeys.ts'
+import { getBomb, type BombState } from '#/lib/bombs.functions.ts'
+import { useNow } from '#/lib/useNow.ts'
 
 export const Route = createFileRoute('/_authed/glitches/$glitchId')({
   validateSearch: (search: Record<string, unknown>): { fresh?: boolean } => ({
     fresh: search.fresh === true || search.fresh === 'true' ? true : undefined,
   }),
   loader: async ({ params }) => {
-    const glitch = await getGlitch({ data: params.glitchId })
+    const [glitch, bomb] = await Promise.all([getGlitch({ data: params.glitchId }), getBomb({ data: params.glitchId })])
     if (!glitch) throw notFound()
-    return glitch
+    return { ...glitch, bomb }
   },
   head: ({ params }) => ({ meta: [{ title: `${params.glitchId} · Guardians of the Grid` }] }),
   notFoundComponent: () => (
@@ -123,6 +125,8 @@ function GlitchPage() {
           </figcaption>
         </figure>
       </div>
+
+      {glitch.bomb && <BombPanel bomb={glitch.bomb} />}
 
       {/* Containment protocol */}
       <section aria-labelledby="status-heading" className="metal rivets p-5">
@@ -247,5 +251,57 @@ function GlitchPage() {
         </aside>
       </div>
     </article>
+  )
+}
+
+/** Planted device on this file: a loud call to defuse while it ticks, a short note once it's settled. */
+function BombPanel({ bomb }: { bomb: BombState }) {
+  const now = useNow(1000)
+  const router = useRouter()
+  const fuseOut = bomb.status === 'ARMED' && new Date(bomb.fuseEndsAt).getTime() <= now
+  // Fuse ran out while watching: reload so the server settles the device.
+  useEffect(() => {
+    if (fuseOut) router.invalidate()
+  }, [fuseOut, router])
+  if (bomb.status === 'DEFUSED') {
+    return (
+      <p className="inset flex items-center gap-3 bg-metal-lo px-4 py-2 text-xl text-[#d8d3a6]">
+        <span data-on="green" className="lamp size-4" aria-hidden="true" />
+        Device defused by <span className="text-amber">{bomb.defusedByCodename ?? 'a guardian'}</span>
+        {bomb.defusePoints != null && <span className="text-phos">+{bomb.defusePoints} hero points</span>}
+      </p>
+    )
+  }
+  if (bomb.status === 'DETONATED') {
+    return (
+      <p className="inset flex items-center gap-3 bg-metal-lo px-4 py-2 text-xl text-[#ff7a5c]">
+        <span data-on="red" className="lamp size-4" aria-hidden="true" />
+        Device detonated at {bomb.siteName}. Fear in the district spiked.
+      </p>
+    )
+  }
+  const s = Math.max(0, Math.ceil((new Date(bomb.fuseEndsAt).getTime() - now) / 1000))
+  const time = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  return (
+    <section className="metal overflow-hidden" aria-label="Planted device">
+      <div className="hazard h-3" aria-hidden="true" />
+      <div className="flex flex-wrap items-center gap-4 p-4">
+        <span data-on="red" className="lamp size-6 animate-blink" aria-hidden="true" />
+        <div className="flex-1">
+          <p className="stamp text-lg font-bold text-[#ff7a5c]">Planted device armed</p>
+          <p className="leading-tight text-[#d8d3a6]">This glitch is a bomb at {bomb.siteName}. Anyone can defuse it before the fuse runs out.</p>
+        </div>
+        <span
+          className={`readout px-3 text-4xl tabular-nums ${s < 30 ? 'animate-blink text-[#ff3b1f]' : ''}`}
+          aria-label={`${s} seconds left`}
+          suppressHydrationWarning
+        >
+          T-{time}
+        </span>
+        <Link to="/bombs/$glitchId" params={{ glitchId: bomb.glitchId }} className="btn px-6 py-3 text-sm">
+          Defuse the device ▸
+        </Link>
+      </div>
+    </section>
   )
 }

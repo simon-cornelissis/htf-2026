@@ -1,6 +1,6 @@
 import { getRouteApi, Link, useRouter } from '@tanstack/react-router'
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import { Power } from 'lucide-react'
+import { Bell, Power } from 'lucide-react'
 import { Seal, Tube, Wires } from '#/components/ui/Seal.tsx'
 import { TransmitDialog, type TransmitTarget } from '#/components/TransmitDialog.tsx'
 import { BombAlert } from '#/components/BombAlert.tsx'
@@ -120,6 +120,10 @@ export function Shell({ children }: { children: ReactNode }) {
             </Link>
             <Link to="/leaderboard" className="btn px-4 py-2 text-sm" activeProps={{ 'aria-current': 'page', className: 'btn btn-primary px-4 py-2 text-sm' }}>
               Leaderboard
+            </Link>
+            <Link to="/notifications" className="btn flex items-center gap-2 px-4 py-2 text-sm" activeProps={{ 'aria-current': 'page', className: 'btn btn-primary flex items-center gap-2 px-4 py-2 text-sm' }}>
+              <Bell className="size-4" />
+              Alerts
             </Link>
             <Tip text="Case files on Desync members and sympathisers: status, wanted level and every report on file.">
               <Link to="/persons" className="btn px-4 py-2 text-sm" activeProps={{ 'aria-current': 'page', className: 'btn btn-primary px-4 py-2 text-sm' }}>

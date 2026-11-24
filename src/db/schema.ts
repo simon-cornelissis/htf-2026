@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { blob, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 // Relative import: drizzle-kit loads this file and doesn't resolve the `#/` alias.
 import { GLITCH_STATUSES, GUARDIAN_ROLES } from '../lib/glitch.ts'
 import { DISTRICT_IDS } from '../lib/districts.ts'
@@ -57,6 +57,18 @@ export const echoes = sqliteTable('echoes', {
   moderationReason: text('moderation_reason'),
 })
 
+export const echoImages = sqliteTable('echo_images', {
+  imageId: text('image_id').primaryKey(),
+  echoId: text('echo_id')
+    .notNull()
+    .references(() => echoes.echoId, { onDelete: 'cascade' }),
+  fileName: text('file_name').notNull(),
+  mimeType: text('mime_type', { enum: ['image/jpeg', 'image/png', 'image/webp'] }).notNull(),
+  byteSize: integer('byte_size').notNull(),
+  data: blob('data', { mode: 'buffer' }).notNull(),
+  createdAt: text('created_at').notNull(),
+})
+
 export const sessions = sqliteTable('sessions', {
   token: text('token').primaryKey(),
   guardianId: text('guardian_id')
@@ -65,6 +77,52 @@ export const sessions = sqliteTable('sessions', {
   /** ISO 8601 */
   expiresAt: text('expires_at').notNull(),
 })
+
+export const notificationPreferences = sqliteTable('notification_preferences', {
+  guardianId: text('guardian_id')
+    .primaryKey()
+    .references(() => guardians.guardianId, { onDelete: 'cascade' }),
+  inApp: integer('in_app', { mode: 'boolean' }).notNull().default(true),
+  push: integer('push', { mode: 'boolean' }).notNull().default(false),
+  email: integer('email', { mode: 'boolean' }).notNull().default(false),
+  sms: integer('sms', { mode: 'boolean' }).notNull().default(false),
+  emailAddress: text('email_address'),
+  phoneNumber: text('phone_number'),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const notifications = sqliteTable(
+  'notifications',
+  {
+    notificationId: text('notification_id').primaryKey(),
+    guardianId: text('guardian_id')
+      .notNull()
+      .references(() => guardians.guardianId, { onDelete: 'cascade' }),
+    eventKey: text('event_key').notNull(),
+    kind: text('kind', { enum: ['CRITICAL_REPORT', 'BOMB_ARMED', 'BOMB_DETONATED', 'SENSOR_ANOMALY'] }).notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    href: text('href').notNull(),
+    createdAt: text('created_at').notNull(),
+    readAt: text('read_at'),
+  },
+  (table) => [uniqueIndex('notifications_guardian_event_unique').on(table.guardianId, table.eventKey)],
+)
+
+export const pushSubscriptions = sqliteTable(
+  'push_subscriptions',
+  {
+    subscriptionId: text('subscription_id').primaryKey(),
+    guardianId: text('guardian_id')
+      .notNull()
+      .references(() => guardians.guardianId, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [uniqueIndex('push_subscriptions_endpoint_unique').on(table.endpoint)],
+)
 
 /** False flag operations planned by commanders. Never exposed to defenders. */
 export const operations = sqliteTable('operations', {

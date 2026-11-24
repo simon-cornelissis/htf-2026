@@ -27,6 +27,7 @@ import { FUSE_SECONDS, MAX_STRIKES, STRIKE_PENALTY_SECONDS } from '#/lib/bomb.ts
 import { actOnPerson, addCaseNote, attributeGlitch, getExposure, getPerson, getPersons, PERSON_ACTIONS } from '#/lib/persons.functions.ts'
 import { PERSON_STATUS_META, PERSON_STATUSES, type PersonCard } from '#/lib/persons.ts'
 import { runAs } from '#/lib/session.ts'
+import { getSensorStatus, ingestSensorReading } from '#/lib/sensors.functions.ts'
 import { capabilitiesFor } from './capabilities.ts'
 import { resolveDistrict, resolveSite, siteLabel } from './world-lookup.ts'
 
@@ -452,7 +453,58 @@ const getExposureTool = defineTool({
   },
 })
 
+const getSensorStatusTool = defineTool({
+  name: 'get_sensor_status',
+  title: 'Sensor trends',
+  description:
+    'Read the latest sensor readings from the last 24 hours and open sensor-generated anomalies. ' +
+    'data_stock and magic_reserve trigger an automatic LEAKED glitch when a sensor reports a drop of at least 40% within five minutes.',
+  input: z.strictObject({
+    district: z.string().optional().describe('Optional district id or name to filter sensor readings.'),
+  }),
+  access: 'everyone',
+  effect: 'read',
+  annotations: READ,
+  async run({ district }) {
+    const status = await getSensorStatus({ data: { district: district ? resolveDistrict(district) : undefined } })
+    return ok(
+      `${status.readings.length} sensor readings in the last 24 hours; ${status.openAnomalies.length} open sensor anomalies.`,
+      status,
+    )
+  },
+})
+
 // ── Defenders and up ───────────────────────────────────────────────────────
+
+const ingestSensorReadingTool = defineTool({
+  name: 'ingest_sensor_reading',
+  title: 'Ingest sensor reading',
+  description:
+    'Record a trusted IoT sensor reading. This can automatically open a severity-4 LEAKED glitch when data_stock or ' +
+    'magic_reserve drops by at least 40% within five minutes. Call only with a real reading supplied by a sensor; never invent telemetry.',
+  input: z.strictObject({
+    sensorId: z.string().min(1).max(64).describe('Provisioned sensor id, e.g. "mirewells-store-01".'),
+    district: z.string().describe('District id or name.'),
+    metric: z.enum(['data_stock', 'magic_reserve']).describe('Monitored resource metric.'),
+    value: z.number().finite().min(0).max(1e12).describe('Current non-negative sensor value.'),
+  }),
+  access: 'commander',
+  effect: 'write',
+  annotations: WRITE,
+  summarize({ sensorId, district, metric, value }) {
+    return `Record ${metric} reading ${value} from ${sensorId} in ${district}.`
+  },
+  async run({ sensorId, district, metric, value }) {
+    const result = await ingestSensorReading({
+      data: { sensorId, district: resolveDistrict(district), metric, value },
+    })
+    if (!result.anomaly) return ok(`Sensor reading stored. No threshold breach detected.`, result)
+    if (!result.anomaly.created) {
+      return ok(`Anomaly remains linked to open glitch ${result.anomaly.glitchId}; no duplicate was opened.`, result)
+    }
+    return ok(`Predictive anomaly detected. Opened ${result.anomaly.glitchId} (LEAKED, severity 4).`, result)
+  },
+})
 
 const reportEchoTool = defineTool({
   name: 'report_echo',
@@ -753,6 +805,7 @@ export const TOOLS: readonly ToolDef[] = [
   listPersons,
   getPersonTool,
   getExposureTool,
+  getSensorStatusTool,
   reportEchoTool,
   cutWireTool,
   setGlitchStatusTool,
@@ -763,6 +816,7 @@ export const TOOLS: readonly ToolDef[] = [
   actOnPersonTool,
   addCaseNoteTool,
   attributeGlitchTool,
+  ingestSensorReadingTool,
 ] as readonly ToolDef[]
 
 export function roleAllows(access: ToolAccess, role: GuardianRole): boolean {

@@ -217,6 +217,28 @@ function GlitchPage() {
                       )}
                     </div>
                     <p className="text-phos">&gt; {echo.description}</p>
+                    {echo.images.length > 0 && (
+                      <ul className="mt-2 flex flex-wrap gap-2" aria-label="Attached photos">
+                        {echo.images.map((image) => (
+                          <li key={image.imageId}>
+                            <a
+                              href={`/api/echo-images/${image.imageId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block border border-edge p-1 hover:border-amber"
+                            >
+                              <img
+                                src={`/api/echo-images/${image.imageId}`}
+                                alt={`Photo attached to ${echo.echoId}`}
+                                loading="lazy"
+                                className="size-24 object-cover sm:size-32"
+                              />
+                              <span className="block max-w-32 truncate text-sm text-phos-dim">{image.fileName}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 ))}
               </ol>

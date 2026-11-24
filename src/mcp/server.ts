@@ -18,6 +18,8 @@ Vocabulary: a glitch is an incident (status LEAKED -> ASSESSING -> CONTAINING ->
 report on a glitch; districts have residents whose happiness, fear and anxiety (0-100) react to glitches.
 Commanders can stage "false flag operations" that look like real glitches to defenders. A planted device
 (operation type "bomb") arms a ${FUSE_SECONDS}-second fuse: anyone with defender rights can defuse it with cut_wire.
+Trusted IoT integrations may submit data_stock and magic_reserve readings through ingest_sensor_reading.
+A drop of at least 40% within five minutes automatically opens a sensor-anomaly glitch; never invent sensor readings.
 
 Sites are landmarks: use a site id "district:type" (e.g. "rustmarket:square") or the landmark name.
 Call list_districts when unsure. Deleting glitches or echoes is not available here: that stays with humans in the app.`
@@ -83,7 +85,7 @@ export function createAchronaMcpServer(caller: Guardian): McpServer {
           content: {
             type: 'text',
             text:
-              'Give me a short situation report of Achrona. Use get_world, then list_glitches with openOnly. ' +
+              'Give me a short situation report of Achrona. Use get_world, get_sensor_status, then list_glitches with openOnly. ' +
               'Lead with grid integrity and any armed devices (they are urgent), then the three most afraid districts and why, ' +
               'then the open glitches that nobody is on yet (LEAKED). End with what I should do next given my role (see whoami).',
           },

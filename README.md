@@ -26,6 +26,44 @@ npm run dev
 > **Node 24 vereist** (zie `.node-version`). Op Node 22.12 crasht `better-sqlite3` (segfault).
 
 **Demo guardians** (passphrase `guest`): `COMMANDER`, `DEFENDER1` en `DEFENDER2`.
+
+### User engagement
+
+- Echoes accept up to three JPG, PNG or WebP photos (4 MB each, 8 MB total).
+  Photos are stored in SQLite and served only to signed-in guardians.
+- The transmit form supports browser speech recognition in English and Dutch.
+  Audio is handled by the browser and is not uploaded; microphone permission is required.
+- `/notifications` stores each guardian's alert preferences. Critical reports and
+  armed/detonated devices appear in the in-app inbox. Optional browser push uses
+  VAPID, email uses Resend and SMS uses Twilio; set the matching values in `.env`.
+- The existing leaderboard awards points for reporting and fixing glitches and
+  defusing devices, with badges for milestones.
+
+Generate Web Push keys with `npx web-push generate-vapid-keys`, then set
+`WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY` and a contact `WEB_PUSH_SUBJECT`.
+For email, configure a verified Resend sender in `RESEND_FROM_EMAIL`; for SMS,
+configure a Twilio account and sender number. Set `APP_BASE_URL` to the public
+app URL so email links open the right incident.
+
+After updating an existing database, run `npm run db:push` to create the new
+photo, notification and sensor-reading tables.
+
+### Predictive sensor monitoring
+
+The shared MCP server and CUSTODIAN expose `get_sensor_status` and the
+commander-only `ingest_sensor_reading` tool. Submit real readings with a sensor
+id, district, metric (`data_stock` or `magic_reserve`) and non-negative value.
+When the same sensor's readings show a drop of at least 40% within five minutes,
+the server creates one severity-4 `LEAKED` glitch, records the detector decision
+in the audit log and sends a critical alert. Further readings link to the
+existing open glitch instead of creating duplicates. A fixed glitch can be
+followed by a new anomaly later.
+
+The detector is deterministic threshold-based monitoring, not a trained
+forecasting model. MCP sensor ingestion requires commander clearance; an
+integration should use a dedicated commander token and send measurements from
+its trusted sensor source.
+
 ## Beoordeling
 > Hoe wij beoordelen wordt voor de start van de hackathon met alle studenten gedeeld, zodat dit meteen duidelijk is voor iedereen.
 

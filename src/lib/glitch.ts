@@ -58,6 +58,13 @@ export type Guardian = {
   role: GuardianRole
 }
 
+export type EchoImage = {
+  imageId: string
+  fileName: string
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
+  byteSize: number
+}
+
 export type Echo = {
   echoId: string
   glitchId: string
@@ -66,6 +73,7 @@ export type Echo = {
   timestamp: string
   reportingGuardianId: string
   reportingCodename: string
+  images: EchoImage[]
 }
 
 export type GlitchDetail = Glitch & { echoes: Echo[]; stagedBy?: string | null }
